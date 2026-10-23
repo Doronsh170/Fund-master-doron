@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict');
+const catalog=require('../fund-catalog.js').build(require('../fund-sources.js'),require('../exchange-data.js')).rows;
+const data=require('../maya-performance-data.js'),records=data.funds,counts={};
+assert.equal(Object.keys(records).length,catalog.length);
+for(const fund of catalog){const r=records[fund.number];assert(r,'Missing fund '+fund.number);assert.equal(r.number,fund.number);assert(['available','not-provided','not-found','request-failed'].includes(r.status));counts[r.status]=(counts[r.status]||0)+1;assert(!Number.isNaN(Date.parse(r.fetchedAt)));if(r.status==='available'){assert(r.asOf===null||/^\d{4}-\d{2}-\d{2}/.test(r.asOf));assert.equal(r.rows.length,4);for(const row of r.rows)for(const key of ['fund','classification'])assert(row[key]===null||typeof row[key]==='number'&&Number.isFinite(row[key]));assert(r.rows.some(row=>row.fund!==null||row.classification!==null&&row.classification!==0));assert(r.source.startsWith('https://maya.tase.co.il/'));}else assert(!r.rows||r.rows.length===0);}
+assert.deepEqual(data.report.counts,counts);assert.equal(data.report.total,catalog.length);assert(counts.available>catalog.length/2,'Insufficient performance source coverage');assert((counts['request-failed']||0)<=Math.ceil(catalog.length*.03),'Too many request failures');
+console.log('MAYA data validation passed:',JSON.stringify(counts));
