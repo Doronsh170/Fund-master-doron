@@ -1,0 +1,10 @@
+.personal-workspace{margin:14px 0;padding:12px 0;border-top:1px solid #b8b0b0;color:inherit;font-size:14px}
+.personal-workspace .personal-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.personal-workspace button,.personal-workspace select,.personal-workspace input{font:inherit;min-height:40px;border:1px solid #b8b0b0;border-radius:6px;padding:8px 10px;background:#fff;color:#242024}
+.personal-workspace button{cursor:pointer}.personal-workspace button[aria-pressed=true]{background:#701c3c;color:#fff;border-color:#701c3c}
+.personal-workspace .personal-note{font-size:12px;line-height:1.6;color:#5e555b;margin:8px 0}
+.personal-workspace input{width:auto;min-width:0;max-width:100%}.personal-workspace .personal-editor{display:grid;gap:8px;max-width:560px;margin:12px 0;padding:12px;background:#f4f0f2;border-radius:8px}
+.personal-workspace .personal-editor label{display:grid;gap:5px}.personal-workspace .personal-editor input{width:100%}.personal-workspace [hidden]{display:none!important}
+.personal-workspace .personal-tab{display:inline-flex;align-items:center;gap:3px}.personal-workspace .personal-tab button:last-child{font-size:12px}
+.fund-search-status{font-size:13px;line-height:1.6;margin:10px 0;color:#5e4651}.fund-search-evidence{display:block;font-size:12px;color:#6f1538;margin-top:7px}
+@media(pointer:coarse){.personal-workspace button{min-height:44px}}@media(max-width:520px){.personal-workspace .personal-row label{width:100%}}
