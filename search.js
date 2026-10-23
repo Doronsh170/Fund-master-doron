@@ -8,6 +8,7 @@
   function fields(row) {
     return {
       name: row.name ?? row['שם הקרן'] ?? '',
+      aliases: Array.isArray(row.aliases) ? row.aliases.join(' ') : '',
       number: String(row.number ?? row['מספר קרן'] ?? ''),
       manager: row.manager ?? row['חברה מנהלת'] ?? '',
       category: row.category ?? row['מסלול השקעה'] ?? '',
@@ -49,7 +50,7 @@
     const title = norm(f.name), manager = norm(f.manager);
     const nameText = norm([f.name, f.category].join(' '));
     const policyText = norm(f.note);
-    const hay = norm([f.name, f.number, f.manager, f.category, f.type, f.currency, f.note].join(' '))
+    const hay = norm([f.name, f.number, f.manager, f.category, f.type, f.currency, f.note, f.aliases].join(' '))
       .replace(/נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq');
     let reason = '', score = 10;
     if (p.duration !== null || p.longDuration) {

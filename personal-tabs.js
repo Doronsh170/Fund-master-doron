@@ -20,7 +20,7 @@
     } catch (_) {storageAvailable = false;}
     return {profiles: [{id: 'local', name: 'היועץ שלי', tabs: []}], active: 'local'};
   }
-  let state = load(), activeTab = '', editing = null;
+  let state = load(), activeTab = '', editing = null, applying = false, activeSnapshot = null;
   const profile = () => state.profiles.find(p => p.id === state.active);
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const box = document.createElement('section');
@@ -44,6 +44,7 @@
     if (byId('manager')) byId('manager').dispatchEvent(new Event('change', {bubbles: true}));
   }
   function apply(tab) {
+    applying = true;
     activeTab = tab?.id || '';
     queryInput.value = tab?.query || '';
     for (const id of filters) if (byId(id)) {
@@ -51,7 +52,14 @@
       control.value = value;
       if (control.tagName === 'SELECT' && control.selectedIndex < 0) control.selectedIndex = 0;
     }
-    refresh(); paint();
+    // Preserve currency filters from personal tabs created in the original interface.
+    if (tab?.filters.fxFilter && !tab.filters.currency && byId('currency')) {
+      byId('currency').value = {'כן':'חשופה','מנוטרלת מט״ח':'מנוטרלת','לא ידוע':'לא ידוע'}[tab.filters.fxFilter] || '';
+    }
+    refresh();
+    applying = false;
+    activeSnapshot = JSON.stringify({query: queryInput.value, filters: capture()});
+    status(); paint();
   }
   function button(text, callback, pressed) {
     const b = document.createElement('button');b.type = 'button';b.textContent = text;
@@ -126,9 +134,11 @@
     }
   });
   for (const id of ['q', ...filters]) if (byId(id)) for (const event of ['input', 'change']) byId(id).addEventListener(event, () => {
-    const current = profile().tabs.find(t => t.id === activeTab);
-    if (current && (current.query !== queryInput.value || JSON.stringify(current.filters) !== JSON.stringify(capture()))) activeTab = '';
-    status();paint();
+    if (applying) return;
+    const selectedBefore = activeTab;
+    if (activeTab && activeSnapshot !== JSON.stringify({query: queryInput.value, filters: capture()})) activeTab = '';
+    status();
+    if (selectedBefore !== activeTab) paint();
   });
   byId('clearBtn')?.addEventListener('click', () => {activeTab = '';status();paint();});
   byId('reset')?.addEventListener('click', () => {activeTab = '';status();paint();});

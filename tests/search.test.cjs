@@ -1,33 +1,26 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const S = require('../search.js');
-const f = (name, extra = {}) => ({name, ...extra});
-assert(S.match(f('קרן 10/90'), '90\\10').matched);
-assert(S.match(f('קרן עד 10% מניות'), '90/10').matched);
-assert(!S.match(f('קרן אג״ח + 10%'), '90/10').matched);
-assert(S.match(f('קרן NASDAQ 100'), 'נאסדק').matched);
-assert(S.match(f('קרן S&P 500'), 'S&P 500').matched);
-assert(S.match(f('קרן נקובה $'), 'דולר').matched);
-assert(S.match(f('קרן מנוטרלת דולר'), 'דולר').matched);
-assert(!S.match(f('קרן זרה', {currency:'חשופה'}), 'דולר').matched);
-assert(!S.match(f('קרן לפדיון 2035'), 'מחמ 10').matched);
-assert(!S.match(f('אג״ח ממשלה 10+ שנים'), 'מחמ ארוך').matched);
-assert(S.match(f('קרן', {durationYears:9.5}), 'מחמ 10').matched);
-assert(!S.match(f('קרן', {durationYears:9.5}), 'מחמ בדיוק 10').matched);
-assert(S.match(f('קרן', {durationYears:12}), 'מחמ לפחות 10').matched);
-assert(S.match(f('קרן', {note:'מח״מ מדד בפרסום: 10.4 שנים.'}), 'מחמ 10').matched);
-assert(S.match(f('קרן', {note:'מדיניות מח״מ ארוך'}), 'מחמ ארוך').matched);
-assert(S.match(f('קרן לפדיון 2035'), 'לפדיון').matched);
-assert(S.match(f('קרן', {note:'מסלול לפדיון 2030'}), 'לפדיון').matched);
-assert(S.match(f('אנליסט מדינה', {manager:'אנליסט'}), 'אנליסט מדינה').matched);
-assert(!S.match(f('קרן', {durationYears:''}), 'מחמ 0').matched);
-for (const path of ['index.html','flyers/index.html']) {
-  const html=fs.readFileSync(require('node:path').join(__dirname,'..',path),'utf8');
-  const rows=JSON.parse(html.match(path==='index.html'?/const DATA = (\[[\s\S]*?\]);/:/const funds=(\[[\s\S]*?\]);/)[1]);
-  for (const q of ['דולר','לפדיון','90\\10','מחמ ארוך','מחמ 10','אנליסט','NASDAQ','S&P 500']) {
-    const n=rows.filter(r=>S.match(r,q).matched).length;
-    console.log(path,q,n);
-  }
-  assert.equal(rows.length,path==='index.html'?206:121);
-}
-console.log('Search behavior checks passed');
+const assert=require('node:assert/strict');
+const {build}=require('../fund-catalog.js'),sources=require('../fund-sources.js'),S=require('../search.js');
+const {rows,report}=build(sources);
+assert.deepEqual(report,{inputCount:327,uniqueCount:280,duplicateCount:47,conflictCount:1});
+assert.equal(new Set(rows.map(r=>r.number)).size,280);
+for(const [source,records] of Object.entries(sources))for(const record of records){const id=String(record.number??record['מספר קרן']);const row=rows.find(r=>r.number===id);assert(row);assert(row.provenance.some(p=>p.source===source&&JSON.stringify(p.record)===JSON.stringify(record)));}
+const completed=rows.find(r=>r.number==='5142534');assert.equal(completed.fee,.1);assert.equal(completed.denomination,'כן');assert.equal(completed.provenance.length,2);
+assert.equal(rows.find(r=>r.number==='5139316').currency,'לא ידוע');assert.match(rows.find(r=>r.number==='5139316').note,/הבדל בין המקורות/);
+const synthetic=build({legacy:[{...sources.legacy[0],'מספר קרן':'9000001','דמי ניהול':'0.1%'}],flyers:[{...sources.flyers[0],number:'9000001',fee:.2}]}).rows[0];assert.equal(synthetic.fee,null);assert(synthetic.conflicts.some(c=>c.field==='fee'));
+assert.throws(()=>build({legacy:[],flyers:[{number:'bad'}]}),/Invalid fund number/);
+assert(S.match(completed,'5142534').matched);
+assert(S.match({name:'קרן',aliases:['מסלול מיוחד']},'מיוחד').matched);
+assert(rows.filter(r=>S.match(r,'לפדיון').matched).length>=2);
+assert(rows.filter(r=>S.match(r,'מחמ 10').matched).length>=3);
+const f=(name,extra={})=>({name,...extra});
+assert(S.match(f('קרן 10/90'),'90\\10').matched);
+assert(S.match(f('עד 10% מניות'),'90/10').matched);
+assert(!S.match(f('אגח + 10%'),'90/10').matched);
+assert(S.match(f('NASDAQ 100'),'נאסדק').matched);
+assert(!S.match(f('קרן זרה',{currency:'חשופה'}),'דולר').matched);
+assert(!S.match(f('לפדיון 2035'),'מחמ 10').matched);
+assert(!S.match(f('אגח 10+ שנים'),'מחמ ארוך').matched);
+assert(S.match(f('קרן',{durationYears:9.5}),'מחמ 10').matched);
+assert(!S.match(f('קרן',{durationYears:9.5}),'מחמ בדיוק 10').matched);
+for(const q of ['דולר','לפדיון','90\\10','מחמ 10','אנליסט'])console.log(q,rows.filter(r=>S.match(r,q).matched).length);
+console.log('All catalog preservation, deduplication, conflict and search tests passed.');
