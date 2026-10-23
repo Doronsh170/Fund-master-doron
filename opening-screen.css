@@ -1,0 +1,19 @@
+[hidden]{display:none!important}
+.options-toggle{grid-column:1/-1;justify-self:start;margin-top:4px}
+#searchOptions{padding-top:12px;border-top:1px solid #d6dfeb}
+.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.actions button,.actions button.primary,.actions .whatsapp-share{width:100%;height:48px;margin:0;padding:10px 6px;background:#205b94;color:#fff;border:1px solid #205b94;border-radius:9px;font-size:14px;box-shadow:none}
+.actions button:disabled{opacity:1;cursor:default}
+#themeToggle{float:left;background:#fff;color:#173b62;border:1px solid #cbd4e1;min-width:106px}
+html[data-theme=dark]{color-scheme:dark;background:#111b2a;color:#e6edf7}
+html[data-theme=dark] body{background:#111b2a;color:#e6edf7}
+html[data-theme=dark] .panel,html[data-theme=dark] .card,html[data-theme=dark] .empty,html[data-theme=dark] .search-suggestions,html[data-theme=dark] .search-suggestions button,html[data-theme=dark] .personal-workspace button,html[data-theme=dark] input,html[data-theme=dark] select,html[data-theme=dark] #fund-performance-popover{background:#1c2a3e;color:#e6edf7;border-color:#50627b}
+html[data-theme=dark] .muted,html[data-theme=dark] .foot,html[data-theme=dark] .k,html[data-theme=dark] .provider,html[data-theme=dark] .personal-note,html[data-theme=dark] .fund-search-status,html[data-theme=dark] .fund-search-evidence{color:#bacbe2}
+html[data-theme=dark] .pill,html[data-theme=dark] .search-suggestions .suggestion-heading,html[data-theme=dark] .personal-editor{background:#2c405b;color:#e1eaf8}
+html[data-theme=dark] .search-suggestions button:hover,html[data-theme=dark] .search-suggestions button[aria-selected=true]{background:#304e73}
+html[data-theme=dark] .search-suggestions small,html[data-theme=dark] a{color:#a8d1ff}
+html[data-theme=dark] .note{background:#443b27;color:#f4dfad}
+@media(max-width:680px){.actions{grid-template-columns:repeat(2,minmax(0,1fr))}#themeToggle{min-width:94px}}
+html[data-theme=dark] .fund-performance-popover thead th{background:#2c405b}
+html[data-theme=dark] .performance-date,html[data-theme=dark] .performance-caption,html[data-theme=dark] .performance-unavailable{color:#bacbe2}
+html[data-theme=dark] .fund-number{color:#a8d1ff}
