@@ -17,3 +17,10 @@ html[data-theme=dark] .note{background:#443b27;color:#f4dfad}
 html[data-theme=dark] .fund-performance-popover thead th{background:#2c405b}
 html[data-theme=dark] .performance-date,html[data-theme=dark] .performance-caption,html[data-theme=dark] .performance-unavailable{color:#bacbe2}
 html[data-theme=dark] .fund-number{color:#a8d1ff}
+
+.compact-fund-fields{grid-template-columns:1.2fr 1fr 1fr;gap:12px;padding-bottom:0}
+.compact-fund-fields .fund-number{display:inline-flex;align-items:center;gap:6px;direction:ltr}
+.compact-fund-fields .fund-number svg{width:18px;height:18px;flex-shrink:0}
+.card h3{margin:0 0 18px;line-height:1.55}
+.rating-history{font-size:10px}.performance-hint{margin:0 0 14px;line-height:1.6}
+@media(max-width:420px){.compact-fund-fields{gap:8px}.compact-fund-fields .v{font-size:14px}.compact-fund-fields .k{font-size:11px}}
