@@ -20,7 +20,7 @@
       durationDate: row.durationDate ?? row['תאריך מח״מ'] ?? ''
     };
   }
-  function parse(query) {
+  function parseUncached(query) {
     const raw = norm(query);
     const text = raw.replace(/\b(?:nasdaq|nasdac)\b|נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq')
       .replace(/s\s*(?:&|and)\s*p\s*500|סנופי(?:\s*500)?|סנופי500/g, 's&p 500')
@@ -34,6 +34,15 @@
     return {raw, text, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
       durationMode: duration?.[1] || 'סביב', longDuration};
   }
+  const parsedQueries = new Map();
+  function parse(query) {
+    const key = String(query ?? '');
+    if (parsedQueries.has(key)) return parsedQueries.get(key);
+    const parsed = parseUncached(query);
+    if (parsedQueries.size >= 128) parsedQueries.delete(parsedQueries.keys().next().value);
+    parsedQueries.set(key, parsed);
+    return parsed;
+  }
   function durationOf(f) {
     if (f.duration !== null && f.duration !== '' && Number.isFinite(Number(f.duration))) {
       return {value: Number(f.duration), source: 'נתון מח״מ', date: f.durationDate};
@@ -44,14 +53,26 @@
     const name = norm(f.name).match(/מחמ\s*(\d+(?:\.\d+)?)/);
     return name ? {value: Number(name[1]), source: 'מח״מ בשם הקרן', date: ''} : null;
   }
-  function match(row, query) {
-    const p = typeof query === 'string' ? parse(query) : query;
+  // Catalog records are immutable after import; build normalized fields only once per record.
+  const rowIndex = new WeakMap();
+  function indexed(row) {
+    if (rowIndex.has(row)) return rowIndex.get(row);
+    const index = indexRecord(row);
+    rowIndex.set(row, index);
+    return index;
+  }
+  function indexRecord(row) {
     const f = fields(row);
     const title = norm(f.name), manager = norm(f.manager);
     const nameText = norm([f.name, f.category].join(' '));
     const policyText = norm(f.note);
     const hay = norm([f.name, f.number, f.manager, f.category, f.type, f.currency, f.note, f.aliases].join(' '))
       .replace(/נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq');
+    return {f, title, manager, nameText, policyText, hay};
+  }
+  function match(row, query) {
+    const p = typeof query === 'string' ? parse(query) : query;
+    const {f, title, manager, nameText, policyText, hay} = indexed(row);
     let reason = '', score = 10;
     if (p.duration !== null || p.longDuration) {
       const d = durationOf(f);
