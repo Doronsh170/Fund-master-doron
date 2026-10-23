@@ -25,7 +25,7 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const box = document.createElement('section');
   box.className = 'personal-workspace'; box.setAttribute('aria-label', 'לשוניות אישיות');
-  box.innerHTML = '<div class="personal-row"><label>סביבת עבודה <select data-role="profiles" aria-label="בחירת סביבת עבודה של יועץ"></select></label><button type="button" data-action="profile">הוסף יועץ</button><button type="button" data-action="rename-profile">שנה שם יועץ</button></div><div class="personal-row" data-role="tabs"></div><div class="personal-row"><button type="button" data-action="add">שמור חיפוש כלשונית</button></div><form class="personal-editor" data-role="editor" hidden><label>שם הלשונית<input data-role="name" required maxlength="50"></label><label>חיפוש שמור<input data-role="query" maxlength="200" placeholder="למשל: לפדיון, מח״מ 10, S&P 500"></label><p class="personal-note">לשונית חדשה שומרת גם את המסננים הנוכחיים. בעריכת לשונית נשמרים המסננים שלה; אפשר להחליפם במסננים הנוכחיים.</p><label><span><input data-role="replace-filters" type="checkbox"> החלף במסננים הנוכחיים</span></label><div class="personal-row"><button type="submit">שמור לשונית</button><button type="button" data-action="cancel">ביטול</button><button type="button" data-action="earlier">העבר לפני</button><button type="button" data-action="later">העבר אחרי</button><button type="button" data-action="delete">מחק לשונית</button></div></form><p class="personal-note" data-role="storage"></p><div class="fund-search-status" data-role="status" aria-live="polite"></div><div class="personal-row" data-role="duration"></div>';
+  box.innerHTML = '<div class="personal-row" data-role="tabs"></div><div class="personal-row"><button type="button" data-action="add">שמור חיפוש כלשונית</button></div><form class="personal-editor" data-role="editor" hidden><label>שם הלשונית<input data-role="name" required maxlength="50"></label><label>חיפוש שמור<input data-role="query" maxlength="200" placeholder="למשל: לפדיון, מח״מ 10, S&P 500"></label><p class="personal-note">לשונית חדשה שומרת גם את המסננים הנוכחיים. בעריכת לשונית נשמרים המסננים שלה; אפשר להחליפם במסננים הנוכחיים.</p><label><span><input data-role="replace-filters" type="checkbox"> החלף במסננים הנוכחיים</span></label><div class="personal-row"><button type="submit">שמור לשונית</button><button type="button" data-action="cancel">ביטול</button><button type="button" data-action="earlier">העבר לפני</button><button type="button" data-action="later">העבר אחרי</button><button type="button" data-action="delete">מחק לשונית</button></div></form><p class="personal-note" data-role="storage"></p><div class="fund-search-status" data-role="status" aria-live="polite"></div><div class="personal-row" data-role="duration"></div>';
   const shortcuts = document.querySelector('.quick-search');
   if (shortcuts) {shortcuts.replaceChildren(box);shortcuts.classList.remove('quick-search');}
   else (document.querySelector('.searchbox') || queryInput.parentElement).append(box);
@@ -36,7 +36,7 @@
     storageNote();
   }
   function storageNote() {
-    part('storage').textContent = storageAvailable ? 'הלשוניות נשמרות בדפדפן ובמכשיר הזה לכל סביבת עבודה. אין סנכרון בין מכשירים או אימות זהות.' : 'השמירה בדפדפן אינה זמינה. השינויים יישמרו רק כל עוד העמוד פתוח.';
+    part('storage').textContent = storageAvailable ? 'הלשוניות שלך נשמרות בדפדפן במכשיר הזה.' : 'השמירה בדפדפן אינה זמינה. השינויים יישמרו רק כל עוד העמוד פתוח.';
   }
   function capture() {return Object.fromEntries(filters.filter(byId).map(id => [id, byId(id).value]));}
   function refresh() {
@@ -67,9 +67,7 @@
     b.addEventListener('click', callback);return b;
   }
   function paint() {
-    const select = part('profiles');select.replaceChildren();
-    state.profiles.forEach(p => {const o = document.createElement('option');o.value = p.id;o.textContent = p.name;select.append(o);});select.value = state.active;
-    const tabs = part('tabs');tabs.replaceChildren(button('כל הקרנות', () => apply(null), !activeTab && !queryInput.value));
+    const tabs = part('tabs');tabs.replaceChildren(button('נקה חיפוש', () => apply(null), false));
     for (const tab of profile().tabs) {
       const group = document.createElement('span');group.className = 'personal-tab';
       group.append(button(tab.name, () => apply(tab), activeTab === tab.id));
@@ -105,7 +103,6 @@
       }, parsed.durationMode === mode));
     }
   }
-  part('profiles').addEventListener('change', () => {state.active = part('profiles').value;part('editor').hidden = true;persist();apply(null);});
   part('editor').addEventListener('submit', e => {
     e.preventDefault();const name = part('name').value.trim();if (!name) return;
     const existing = profile().tabs.find(t => t.id === editing);
@@ -117,13 +114,6 @@
     const action = e.target.closest('[data-action]')?.dataset.action;
     if (action === 'add') openEditor(null);
     if (action === 'cancel') part('editor').hidden = true;
-    if (action === 'profile' || action === 'rename-profile') {
-      const name = window.prompt('שם היועץ / סביבת העבודה', action === 'rename-profile' ? profile().name : '');
-      if (!name?.trim()) return;
-      if (action === 'profile') {const p = {id: uid(), name: name.trim().slice(0, 50), tabs: []};state.profiles.push(p);state.active = p.id;}
-      else profile().name = name.trim().slice(0, 50);
-      part('editor').hidden = true;persist();apply(null);
-    }
     const tabs = profile().tabs, index = tabs.findIndex(t => t.id === editing);
     if (index < 0) return;
     if (action === 'delete') {const removed = tabs.splice(index, 1)[0];part('editor').hidden = true;persist();if (activeTab === removed.id) apply(null);else paint();}
