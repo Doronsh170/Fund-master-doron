@@ -1,0 +1,4 @@
+const assert=require('node:assert/strict'),{formatResults}=require('../whatsapp-share.js');
+const rows=[{number:'9000001',name:'קרן א',manager:'מנהל א',fee:0,note:'דמי ניהול משתנים: 0.2%'},{number:'9000002',name:'קרן ב',fee:null}];
+const text=formatResults([...rows,rows[0]],{query:'אגח',filters:[{label:'מנהל',value:'א'}]});
+assert(text.includes('2 קרנות'));assert.equal((text.match(/מספר קרן: 9000001/g)||[]).length,1);assert(text.includes('0.00%'));assert(text.includes('דמי ניהול משתנים: 0.2%'));assert(text.includes('לא הוזן'));assert(text.includes('מנהל: א'));assert(text.includes('\n'));assert(!text.includes('\\n'));assert.equal(formatResults([]),'');console.log('WhatsApp message checks passed.');
