@@ -18,5 +18,6 @@
   let dark=false;try{dark=localStorage.getItem('fund-master.theme')==='dark';}catch(_){}
   function paintTheme(){document.documentElement.dataset.theme=dark?'dark':'light';theme.textContent=dark?'מצב בהיר':'מצב כהה';theme.setAttribute('aria-pressed',String(dark));}
   theme.addEventListener('click',()=>{dark=!dark;paintTheme();try{localStorage.setItem('fund-master.theme',dark?'dark':'light');}catch(_){}});
+  document.getElementById('backToSearch').addEventListener('click',()=>{input.scrollIntoView({behavior:'smooth',block:'center'});input.focus({preventScroll:true});});
   paintTheme();
 })();
