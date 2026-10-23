@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),{build}=require('../fund-catalog.js'),sources=require('../fund-sources.js'),exchange=require('../exchange-data.js'),S=require('../search.js');
+const before=build(sources),result=build(sources,exchange),rows=result.rows,byId=new Map(rows.map(r=>[r.number,r]));
+assert.equal(rows.length,2549);assert.equal(byId.size,2549);assert.equal(result.report.exchangeCount,2524);assert.equal(result.report.exchangeAddedCount,2269);assert.equal(result.report.exchangeMatchedCount,255);assert.equal(result.report.retainedOutsideExchangeCount,25);
+for(const values of exchange.rows){const raw=Object.fromEntries(exchange.columns.map((h,i)=>[h,values[i]]));assert.deepEqual(byId.get(String(raw["מס' קרן"])).exchangeRecord,raw);}
+for(const old of before.rows){const current=byId.get(old.number);assert(current);for(const [key,value]of Object.entries(old)){if(['aliases','provenance'].includes(key))continue;assert.deepEqual(current[key],value,'Changed existing '+old.number+' '+key);}for(const p of old.provenance)assert(current.provenance.some(x=>JSON.stringify(x)===JSON.stringify(p)));for(const alias of old.aliases)assert(current.aliases.includes(alias));}
+const foreign=rows.filter(r=>r.manager==='iShares / BlackRock');assert.equal(foreign.length,23);assert(foreign.every(r=>!r.exchangeRecord));
+const fresh=rows.find(r=>r.importedFromExchange&&r.fee===0);assert(fresh);assert.equal(fresh.fee,0);assert(fresh.exchangeDate);assert(rows.some(r=>r.importedFromExchange&&r.type==='קרן סל'));assert(rows.some(r=>r.importedFromExchange&&r.type==='קרן גידור בנאמנות'));
+assert(S.match(rows.find(r=>r.number==='1143734'),'נאסדק').matched);assert.equal(rows.find(r=>r.number==='1143734').currency,'מנוטרלת');
+assert.throws(()=>build(sources,{...exchange,rows:[exchange.rows[0],exchange.rows[0]]}),/Invalid or duplicate exchange fund/);
+console.log('All 2524 exchange rows imported, 280 existing records preserved, 2549 unique IDs; original 22 source columns retained.');
