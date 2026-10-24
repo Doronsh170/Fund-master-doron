@@ -20,18 +20,33 @@
       durationDate: row.durationDate ?? row['תאריך מח״מ'] ?? ''
     };
   }
+  let managerNames=[];
+  function setCatalog(rows){managerNames=[...new Set(rows.map(x=>norm(x.manager)).filter(Boolean))].sort((a,b)=>b.length-a.length);parsedQueries.clear();}
   function parseUncached(query) {
-    const raw = norm(query);
+    const raw = norm(query).replace(/בדירוג/g,'דירוג').replace(/בדמי ניהול/g,'דמי ניהול');
     const text = raw.replace(/\b(?:nasdaq|nasdac)\b|נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq')
       .replace(/s\s*(?:&|and)\s*p\s*500|סנופי(?:\s*500)?|סנופי500/g, 's&p 500')
       .replace(/\busd\b|\bdollar\b|דולרי(?:ות|ת)?/g, 'דולר')
-      .replace(/\b90\s*\/\s*10\b|\b10\s*\/\s*90\b/g, 'ratio10');
-    const duration = text.match(/מחמ\s*(?:(לפחות|מעל|בדיוק|סביב)\s*)?(\d+(?:\.\d+)?)/);
+      .replace(/\b90\s*\/\s*10\b|\b10\s*\/\s*90\b/g, 'ratio10').replace(/\b80\s*\/\s*20\b|\b20\s*\/\s*80\b/g,'ratio20');
+    const duration = text.match(/מחמ\s*(?:(לפחות|מעל|בדיוק|סביב|עד|מתחת ל)\s*)?(\d+(?:\.\d+)?)/);
     const longDuration = /מחמ\s*ארו[ךכ]/.test(text);
-    let remaining = text;
+    const ratingMatch=text.match(/דירוג(?:י)?(?:\s+דיסקונט)?\s*[:=]?\s*([1-5](?:\s*(?:,|ו|או|\/)\s*[1-5])*)(?![\d.])/);
+    const ratings=ratingMatch?[...new Set(ratingMatch[1].match(/[1-5]/g).map(Number))]:[];
+    let remaining = ratingMatch?text.replace(ratingMatch[0],' '):text;
+    remaining=remaining.replace(/ללא\s+דמי\s+ניהול/g,'דמי ניהול בדיוק 0');
+    const feeMatch=remaining.match(/(?:דמי\s*ניהול|דמנ)\s*(?:של\s*)?(עד|לכל היותר|לא יותר מ|מתחת ל|פחות מ|מעל|לפחות|בדיוק)?\s*[-:=]?\s*(\d+(?:\.\d+)?)\s*(?:%|אחוז(?:ים)?)?/);
+    const fee=feeMatch?{value:Number(feeMatch[2]),mode:feeMatch[1]||'בדיוק'}:null;
+    if(feeMatch)remaining=remaining.replace(feeMatch[0],' ');
+    let currency=null;
+    for(const [pattern,value] of [[/מנוטרל(?:ת|ות|ים)?\s*(?:מטח|מטבע(?:\s*חוץ)?)/,'מנוטרלת'],[/ללא\s*חשיפ(?:ה|ת)\s*(?:ל)?(?:מטח|מטבע\s*חוץ)/,'מנוטרלת'],[/חשופ(?:ה|ת|ות|ים)?\s*(?:ל)?מטח/,'חשופה'],[/נקוב(?:ה|ת|ות|ים)?\s*(?:ב)?דולר/,'דולר']]){if(pattern.test(remaining)){currency=value;remaining=remaining.replace(pattern,' ');break}}
+    const unsupported=/תשוא(?:ה|ות)|סטיית\s+תקן|סיכון|לא\s+מנוטרל/.test(remaining);
+    const managers=[];
+    for(const name of managerNames){const parts=remaining.split(/\s+/);const index=parts.join(' ').indexOf(name);if(index>=0){const before=remaining[index-1],after=remaining[index+name.length];if((!before||/\s/.test(before))&&(!after||/\s/.test(after))){managers.push(name);remaining=remaining.slice(0,index)+' '+remaining.slice(index+name.length);}}}
+    if(managers.length)remaining=remaining.replace(/מנהל(?:ת)?(?:\s+קרן|\s+קרנות)?/g,' ');
+    remaining=remaining.replace(/(?:^|\s)(?:אני|מחפש|מחפשת|רוצה|קרן|קרנות|של|עם|שהיא|שהן|לי|בבקשה|להשקיע|השקעה)(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
     if (duration) remaining = remaining.replace(duration[0], '').replace(/שנים/g, '');
     if (longDuration) remaining = remaining.replace(/מחמ\s*ארו[ךכ](?:ה|ות|ים)?/, '');
-    return {raw, text, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
+    return {raw, text, ratings, fee, currency, managers, unsupported, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
       durationMode: duration?.[1] || 'סביב', longDuration};
   }
   const parsedQueries = new Map();
@@ -74,13 +89,18 @@
     const p = typeof query === 'string' ? parse(query) : query;
     const {f, title, manager, nameText, policyText, hay} = indexed(row);
     let reason = '', score = 10;
+    if(p.unsupported)return {matched:false,score:0};
+    if(p.managers?.length&&!p.managers.includes(manager))return {matched:false,score:0};
+    if(p.currency){const actual=norm(f.currency);if(actual!==norm(p.currency))return {matched:false,score:0};}
+    if(p.fee){if(!Number.isFinite(row.fee))return {matched:false,score:0};const v=row.fee,t=p.fee.value,m=p.fee.mode;const fits=['עד','לכל היותר','לא יותר מ'].includes(m)?v<=t:['מתחת ל','פחות מ'].includes(m)?v<t:m==='מעל'?v>t:m==='לפחות'?v>=t:Math.abs(v-t)<1e-9;if(!fits)return {matched:false,score:0};}
+    if(p.ratings?.length){if(!Number.isFinite(row.discountRating)||!p.ratings.includes(row.discountRating))return {matched:false,score:0};reason='דירוג דיסקונט היסטורי: '+row.discountRating;}
     if (p.duration !== null || p.longDuration) {
       const d = durationOf(f);
       if (p.duration !== null) {
         if (!d) return {matched: false, score: 0};
         const fits = p.durationMode === 'בדיוק' ? Math.abs(d.value - p.duration) < 0.001
           : p.durationMode === 'לפחות' ? d.value >= p.duration
-          : p.durationMode === 'מעל' ? d.value > p.duration : Math.abs(d.value - p.duration) <= 1;
+          : p.durationMode === 'מעל' ? d.value > p.duration : p.durationMode === 'עד' ? d.value <= p.duration : p.durationMode === 'מתחת ל' ? d.value < p.duration : Math.abs(d.value - p.duration) <= 1;
         if (!fits) return {matched: false, score: 0};
         reason = d.source + ': ' + d.value + ' שנים' + (d.date ? ' · ' + d.date : ' · תאריך נתון לא הוזן');
         score = 60 - Math.abs(d.value - p.duration);
@@ -91,7 +111,9 @@
       }
     }
     for (const token of p.tokens) {
-      if (token === 'ratio10') {
+      if(token==='ratio20'){
+        if(!/(?:80\s*\/\s*20|20\s*\/\s*80)/.test(nameText)&&!/עד\s*20\s*%?\s*מניות/.test(nameText+' '+policyText))return {matched:false,score:0};reason='יחס 80/20 או עד 20% מניות לפי הנתונים';score+=40;
+      } else if (token === 'ratio10') {
         if (/(?:90\s*\/\s*10|10\s*\/\s*90)/.test(nameText)) {reason = 'יחס 90/10 בשם / במסלול'; score += 60;}
         else if (/עד\s*10\s*%?\s*מניות/.test(nameText + ' ' + policyText)) {reason = 'עד 10% מניות לפי הנתונים'; score += 40;}
         else return {matched: false, score: 0};
@@ -107,7 +129,8 @@
     else if (p.tokens.every(t => title.includes(t))) score += 30;
     return {matched: true, score, reason: reason || (p.raw ? 'התאמה בשם / בפרטי הקרן' : '')};
   }
-  const api = {norm, fields, parse, match, durationOf};
+  function describe(query){const p=parse(query),parts=[];if(p.unsupported)parts.push('נדרש נתון שאינו נתמך בחיפוש');if(p.managers.length)parts.push('מנהל: '+p.managers.join(' או '));if(p.ratings.length)parts.push('דירוג דיסקונט: '+p.ratings.join(' או '));if(p.fee)parts.push('דמי ניהול '+p.fee.mode+' '+p.fee.value+'%');if(p.currency)parts.push('סיווג מטבעי: '+p.currency);if(p.duration!==null)parts.push('מח״מ '+p.durationMode+' '+p.duration);if(p.longDuration)parts.push('מח״מ ארוך מפורש');if(p.tokens.length)parts.push('מאפייני חיפוש: '+p.tokens.map(x=>x==='ratio10'?'90/10':x==='ratio20'?'80/20':x).join(' · '));return parts.join(' · ');}
+  const api = {norm, fields, parse, match, durationOf, setCatalog, describe};
   host.FundSearch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window === 'undefined' ? globalThis : window);
