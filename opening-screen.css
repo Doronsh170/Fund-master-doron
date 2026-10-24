@@ -41,3 +41,5 @@ html[data-theme=dark] .smart-search-shell .search-input-row{background:#152236}h
 .guided-search>.mixed-choices,.adaptive-question{margin:0 0 18px;padding:14px 12px;border:1px solid #94b6d7;border-radius:12px;background:#f0f6fd}.adaptive-question>p{font-size:14px;font-weight:650;margin:0 0 12px}.guided-search{border-top:0;padding-top:0;margin-top:14px}html[data-theme=dark] .guided-search>.mixed-choices,html[data-theme=dark] .adaptive-question{background:#20354d;border-color:#52799d}
 .results-actions{margin-top:14px;padding:0 0 12px}.results-actions .more-actions{margin:0 auto}.results-actions .actions{margin-top:12px}
 .cash-type-note{font-size:12px!important;font-weight:400!important;color:#61728b;line-height:1.8;margin:12px 0 0!important}html[data-theme=dark] .cash-type-note{color:#b7c9df}
+
+.card>.provider{margin-bottom:7px}
