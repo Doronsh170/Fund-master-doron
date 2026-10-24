@@ -36,7 +36,7 @@ function show(button){
   if(snapshot.deleted)popup.append(element('p','הקרן מסומנת כ״מחוקה״ במאיה; הנתונים היסטוריים.','performance-unavailable'));
   popup.append(element('p','תשואת הסיווג היא ממוצע סיווג הקרן כפי שמוצג במאיה.','performance-caption'));
   popup.append(element('p','* לפי הגדרת 12 החודשים במאיה, מתחילת החודש הקלנדרי הראשון בתקופה.','performance-caption'));
-  popup.append(element('p','נתוני העדכון החודשי · בדיקה אחרונה: '+displayDate(snapshot.fetchedAt),'performance-caption'));
+  popup.append(element('p','נתוני הרענון · בדיקה אחרונה: '+displayDate(snapshot.fetchedAt),'performance-caption'));
   if(snapshot.refreshWarning)popup.append(element('p','העדכון האחרון לקרן לא הושלם; מוצגים הנתונים השמורים מתאריך המקור.','performance-unavailable'));
  }else {
   const message=record?.status==='not-provided'?'מאיה אינה מספקת טבלת תשואה והשוואה לסיווג לקרן זו.':record?.status==='not-found'?'הקרן לא נמצאה בממשק נתוני הביצועים של מאיה.':record?.status==='request-failed'?'עדכון נתוני הקרן ממאיה לא הושלם.':'טרם נאספו נתוני תשואה לקרן זו.';
