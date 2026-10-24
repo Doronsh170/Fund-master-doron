@@ -1,0 +1,29 @@
+(function(){
+ const input=document.getElementById('q'),search=document.getElementById('searchNow'),options=document.getElementById('searchOptions');
+ search.hidden=true;
+ const root=document.createElement('section');root.className='guided-search';root.setAttribute('aria-label','בניית חיפוש');document.querySelector('.search-shortcuts').after(root);
+ root.innerHTML='<div class="guided-label">התנאים לחיפוש שלך</div><div class="guided-chips" aria-live="polite"></div><div class="mixed-choices" hidden><p>איזה הרכב מחפשים?</p><div class="guided-choices"></div></div><div class="guided-add"><button type="button" data-add="fee">＋ דמי ניהול</button><button type="button" data-add="rating">＋ דירוג</button><button type="button" data-add="manager">＋ מנהל קרן</button></div><section class="guided-editor" hidden></section><button type="button" class="primary guided-submit">הצג קרנות</button>';
+ const chips=root.querySelector('.guided-chips'),editor=root.querySelector('.guided-editor');
+ const labels={manager:'מנהל',category:'אפיק',currency:'מטבע',profile:'פרופיל',rating:'דירוג',fee:'דמי ניהול עד',typeFilter:'סוג קרן',denomFilter:'נקיבה'};
+ function pending(){clearTimeout(resultsScrollTimer);document.getElementById('resultsArea').hidden=true;document.getElementById('resultsArea').style.display='none';for(const id of ['export','copy','shareWhatsApp'])document.getElementById(id).disabled=true;}
+ function changeQuery(q){input.value=q;input.dispatchEvent(new Event('input',{bubbles:true}));}
+ function dropCondition(id){changeQuery(FundSearch.conditions(input.value).filter(c=>c.id!==id).map(c=>c.query).join(' '));}
+ function chip(text,remove){const b=document.createElement('button');b.type='button';b.className='guided-chip';b.textContent=text+' ×';b.setAttribute('aria-label','הסר תנאי '+text);b.addEventListener('click',remove);chips.append(b);}
+ function render(){chips.replaceChildren();for(const condition of FundSearch.conditions(input.value))chip(condition.label,()=>dropCondition(condition.id));for(const [id,title] of Object.entries(labels)){const e=document.getElementById(id),values=readFilterControl(id).split('\u001f').filter(Boolean);for(const value of values){const display=e.options?Array.from(e.options).find(o=>o.value===value)?.textContent:value+'%';chip(title+': '+display,()=>{writeFilterControl(id,values.filter(x=>x!==value).join('\u001f'));e.dispatchEvent(new Event('change',{bubbles:true}));pending();render()});}}
+ if(!chips.children.length){const span=document.createElement('span');span.className='guided-empty';span.textContent='אפשר לכתוב צורך או לבחור קיצור דרך';chips.append(span)}
+ root.querySelector('.mixed-choices').hidden=!FundSearch.parse(input.value).mixed;
+ }
+ const mixed=root.querySelector('.guided-choices');for(const ratio of ['כל המעורבות','90/10','80/20','70/30']){const b=document.createElement('button');b.type='button';b.textContent=ratio;b.addEventListener('click',()=>{const rest=FundSearch.conditions(input.value).filter(c=>c.id!=='mixed').map(c=>c.query).join(' ');changeQuery((ratio==='כל המעורבות'?'מעורבות':ratio)+' '+rest)});mixed.append(b)}
+ function openEditor(id){editor.replaceChildren();editor.hidden=false;const title=document.createElement('p');title.textContent=id==='fee'?'דמי ניהול מרביים (%)':id==='rating'?'בחר דירוג אחד או יותר':'בחר מנהל אחד או יותר';editor.append(title);const source=document.getElementById(id),values=readFilterControl(id).split('\u001f');let fee;
+ if(id==='fee'){fee=document.createElement('input');fee.type='number';fee.min='0';fee.max='10';fee.step='0.01';fee.value=source.value;fee.setAttribute('aria-label',title.textContent);editor.append(fee)}else{const group=document.createElement('div');group.className='guided-editor-list';for(const option of source.options){if(!option.value)continue;const label=document.createElement('label'),box=document.createElement('input');box.type='checkbox';box.value=option.value;box.checked=values.includes(option.value);label.append(box,document.createTextNode(option.textContent));group.append(label)}editor.append(group)}
+ const save=document.createElement('button');save.type='button';save.textContent='הוסף תנאי';save.className='primary';save.addEventListener('click',()=>{if(fee&&!fee.checkValidity()){fee.reportValidity();return}const v=fee?fee.value:Array.from(editor.querySelectorAll('input:checked')).map(x=>x.value).join('\u001f');const queryId=id==='rating'?'ratings':id==='manager'?'managers':'fee';const remainder=FundSearch.conditions(input.value).filter(c=>c.id!==queryId).map(c=>c.query).join(' ');writeFilterControl(id,v);if(remainder!==input.value)changeQuery(remainder);source.dispatchEvent(new Event('change',{bubbles:true}));editor.hidden=true;pending();render()});const cancel=document.createElement('button');cancel.type='button';cancel.textContent='ביטול';cancel.addEventListener('click',()=>editor.hidden=true);editor.append(save,cancel);if(fee)fee.focus();
+ }
+ root.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.add)));
+ root.querySelector('.guided-submit').addEventListener('click',()=>{editor.hidden=true;search.click();});
+ input.addEventListener('input',()=>{pending();render()});
+ options.addEventListener('change',()=>{pending();render()});options.addEventListener('input',()=>{pending();render()});
+ search.addEventListener('click',()=>{if(!document.getElementById('resultsArea').hidden){for(const id of ['export','copy'])document.getElementById(id).disabled=!filtered().length;}render()});
+ document.getElementById('applyFilters').addEventListener('click',()=>{for(const id of ['export','copy'])document.getElementById(id).disabled=!filtered().length;render()});
+ document.getElementById('reset').addEventListener('click',()=>{editor.hidden=true;pending();render()});
+ pending();render();
+})();
