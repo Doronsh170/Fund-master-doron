@@ -1,9 +1,25 @@
 (function (host) {
   'use strict';
+  // Normalize complete investment terms, never strip arbitrary Hebrew suffixes.
+  const termForms=new Map();
+  for(const forms of [
+    ['קרן','קרנות'],['כספית','כספיות'],['גמישה','גמיש','גמישים','גמישות'],
+    ['מניות','מניה','מנייתי','מנייתית','מנייתיים','מנייתיות'],
+    ['אגח','אגחים','אגחי','אגחית','אגחיות'],['שקלית','שקלי','שקליים','שקליות'],
+    ['צמודה','צמוד','צמודים','צמודות'],['מנוטרלת','מנוטרל','מנוטרלים','מנוטרלות'],
+    ['חשופה','חשוף','חשופות','חשופים','חשופת'],['מוגבלת','מוגבל','מוגבלים','מוגבלות'],
+    ['נקובה','נקוב','נקובים','נקובות'],['מחקה','מחקות'],['עוקבת','עוקב','עוקבות','עוקבים'],
+    ['אקטיבית','אקטיבי','אקטיביות','אקטיביים'],['פסיבית','פסיבי','פסיביות','פסיביים'],
+    ['קונצרני','קונצרנית','קונצרניים','קונצרניות'],['ממשלתי','ממשלתית','ממשלתיים','ממשלתיות'],
+    ['ארוך','ארוכה','ארוכים','ארוכות'],['קצר','קצרה','קצרים','קצרות'],
+    ['בינוני','בינונית','בינוניים','בינוניות'],['גבוה','גבוהה','גבוהים','גבוהות'],
+    ['נמוך','נמוכה','נמוכים','נמוכות'],['דירוג','דירוגים'],['השקעה','השקעות'],
+    ['סולידית','סולידי','סולידיות','סולידיים'],['משולבת','משולב','משולבות','משולבים']
+  ])for(const form of forms)termForms.set(form,forms[0]);
   function norm(value) {
     return String(value ?? '').normalize('NFKC').toLowerCase()
       .replace(/["'׳״’]/g, '').replace(/[\u200e\u200f\u202a-\u202e]/g, '')
-      .replace(/\\/g, '/').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+      .replace(/\\/g, '/').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim().replace(/[א-ת]+/g,word=>termForms.get(word)||word);
   }
   function fields(row) {
     return {
@@ -23,7 +39,7 @@
   let managerNames=[];
   function setCatalog(rows){managerNames=[...new Set(rows.map(x=>norm(x.manager)).filter(Boolean))].sort((a,b)=>b.length-a.length);parsedQueries.clear();}
   function parseUncached(query) {
-    const raw = norm(query).replace(/בדירוג/g,'דירוג').replace(/בדמי ניהול/g,'דמי ניהול');
+    const raw = norm(query).replace(/בדירוג/g,'דירוג').replace(/בדמי ניהול/g,'דמי ניהול').replace(/כספיות/g,'כספית').replace(/דירוג(?:י)?(?:\s+דיסקונט)?\s+גבוה(?:ה|ים|ות)?/g,'דירוג 3,4,5');
     const text = raw.replace(/\b(?:nasdaq|nasdac)\b|נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq')
       .replace(/s\s*(?:&|and)\s*p\s*500|סנופי(?:\s*500)?|סנופי500/g, 's&p 500')
       .replace(/\busd\b|\bdollar\b|דולרי(?:ות|ת)?/g, 'דולר')

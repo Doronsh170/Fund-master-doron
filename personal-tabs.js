@@ -38,7 +38,7 @@
   function storageNote() {
     part('storage').textContent = storageAvailable ? 'הלשוניות שלך נשמרות בדפדפן במכשיר הזה.' : 'השמירה בדפדפן אינה זמינה. השינויים יישמרו רק כל עוד העמוד פתוח.';
   }
-  function capture() {return Object.fromEntries(filters.filter(byId).map(id => [id, byId(id).value]));}
+  function capture() {return Object.fromEntries(filters.filter(byId).map(id => [id, readFilterControl(id)]));}
   function refresh() {
     queryInput.dispatchEvent(new Event('input', {bubbles: true}));
     if (byId('manager')) byId('manager').dispatchEvent(new Event('change', {bubbles: true}));
@@ -49,7 +49,7 @@
     queryInput.value = tab?.query || '';
     for (const id of filters) if (byId(id)) {
       const control = byId(id), value = tab?.filters[id] ?? '';
-      control.value = value;
+      writeFilterControl(id,value);
       if (control.tagName === 'SELECT' && control.selectedIndex < 0) control.selectedIndex = 0;
     }
     // Preserve currency filters from personal tabs created in the original interface.
