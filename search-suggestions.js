@@ -12,7 +12,7 @@ for(const label of ['דולר','כספית','לפדיון','90/10','מח״מ 10'
 const terms=[...termMap.values()];
 let choices=[],selected=-1,closed=false;
 const close=()=>{list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');selected=-1;};
-function choose(choice){input.value=choice.query;closed=true;input.dispatchEvent(new Event('input',{bubbles:true}));close();input.focus();search.click();}
+function choose(choice){input.value=choice.query;closed=true;input.dispatchEvent(new Event('input',{bubbles:true}));close();input.blur();}
 function select(index){selected=index;list.querySelectorAll('[role=option]').forEach((b,i)=>b.setAttribute('aria-selected',String(i===selected)));if(index>=0)input.setAttribute('aria-activedescendant','fund-suggestion-'+index);else input.removeAttribute('aria-activedescendant');}
 function render(){
 const q=norm(input.value);if(!q||closed){close();return;}

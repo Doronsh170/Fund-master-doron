@@ -25,7 +25,7 @@ button.textContent='שתף תוצאות בוואטסאפ ↗';
 button.addEventListener('click',()=>{
  const ids=['manager','category','currency','profile','rating','fee','typeFilter','denomFilter'];
  const filters=ids.map(id=>document.getElementById(id)).filter(e=>e&&filterValue(e.id)!=='').map(e=>({label:e.closest('label')?.firstChild?.textContent?.trim()||e.id,value:e.tagName==='SELECT'?Array.from(e.options).filter(o=>filterValues(e.id).includes(o.value)).map(o=>o.textContent).join(' או '):filterValue(e.id)+'%'}));
- const text=formatResults(filtered(),{query:document.getElementById('q').value,filters});
+ const text=formatResults(filtered(),{query:activeQuery,filters});
  if(!text)return;
  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');
 });

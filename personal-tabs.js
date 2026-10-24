@@ -56,8 +56,8 @@
     if (tab?.filters.fxFilter && !tab.filters.currency && byId('currency')) {
       byId('currency').value = {'כן':'חשופה','מנוטרלת מט״ח':'מנוטרלת','לא ידוע':'לא ידוע'}[tab.filters.fxFilter] || '';
     }
-    applyFilters(false);
     refresh();
+    applyFilters(false);
     applying = false;
     activeSnapshot = JSON.stringify({query: queryInput.value, filters: capture()});
     status(); paint();

@@ -3,7 +3,7 @@
   // Normalize complete investment terms, never strip arbitrary Hebrew suffixes.
   const termForms=new Map();
   for(const forms of [
-    ['קרן','קרנות'],['כספית','כספיות'],['גמישה','גמיש','גמישים','גמישות'],
+    ['מעורבת','מעורב','מעורבות','מעורבים'],['קרן','קרנות'],['כספית','כספיות'],['גמישה','גמיש','גמישים','גמישות'],
     ['מניות','מניה','מנייתי','מנייתית','מנייתיים','מנייתיות'],
     ['אגח','אגחים','אגחי','אגחית','אגחיות'],['שקלית','שקלי','שקליים','שקליות'],
     ['צמודה','צמוד','צמודים','צמודות'],['מנוטרלת','מנוטרל','מנוטרלים','מנוטרלות'],
@@ -43,13 +43,15 @@
     const text = raw.replace(/\b(?:nasdaq|nasdac)\b|נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq')
       .replace(/s\s*(?:&|and)\s*p\s*500|סנופי(?:\s*500)?|סנופי500/g, 's&p 500')
       .replace(/\busd\b|\bdollar\b|דולרי(?:ות|ת)?/g, 'דולר')
-      .replace(/\b90\s*\/\s*10\b|\b10\s*\/\s*90\b/g, 'ratio10').replace(/\b80\s*\/\s*20\b|\b20\s*\/\s*80\b/g,'ratio20');
+      .replace(/\b90\s*\/\s*10\b|\b10\s*\/\s*90\b/g, 'ratio10').replace(/\b80\s*\/\s*20\b|\b20\s*\/\s*80\b/g,'ratio20').replace(/(\d{1,2})\s*\/\s*(\d{1,2})/g,(all,a,b)=>Number(a)+Number(b)===100?'ratio'+Math.min(Number(a),Number(b)):all);
     const duration = text.match(/מחמ\s*(?:(לפחות|מעל|בדיוק|סביב|עד|מתחת ל)\s*)?(\d+(?:\.\d+)?)/);
     const longDuration = /מחמ\s*ארו[ךכ]/.test(text);
     const ratingMatch=text.match(/דירוג(?:י)?(?:\s+דיסקונט)?\s*[:=]?\s*([1-5](?:\s*(?:,|ו|או|\/)\s*[1-5])*)(?![\d.])/);
     const ratings=ratingMatch?[...new Set(ratingMatch[1].match(/[1-5]/g).map(Number))]:[];
     let remaining = ratingMatch?text.replace(ratingMatch[0],' '):text;
     remaining=remaining.replace(/ללא\s+דמי\s+ניהול/g,'דמי ניהול בדיוק 0');
+    remaining=remaining.replace(/(עד|לכל היותר|מתחת ל|פחות מ|מעל|לפחות|בדיוק)\s+(דמי\s*ניהול|דמנ)/g,'$2 $1');
+    const mixed=/(?:^|\s)מעורבת(?=\s|$)/.test(remaining);remaining=remaining.replace(/(?:^|\s)מעורבת(?=\s|$)/g,' ');
     const feeMatch=remaining.match(/(?:דמי\s*ניהול|דמנ)\s*(?:של\s*)?(עד|לכל היותר|לא יותר מ|מתחת ל|פחות מ|מעל|לפחות|בדיוק)?\s*[-:=]?\s*(\d+(?:\.\d+)?)\s*(?:%|אחוז(?:ים)?)?/);
     const fee=feeMatch?{value:Number(feeMatch[2]),mode:feeMatch[1]||'בדיוק'}:null;
     if(feeMatch)remaining=remaining.replace(feeMatch[0],' ');
@@ -62,7 +64,7 @@
     remaining=remaining.replace(/(?:^|\s)(?:אני|מחפש|מחפשת|רוצה|קרן|קרנות|של|עם|שהיא|שהן|לי|בבקשה|להשקיע|השקעה)(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
     if (duration) remaining = remaining.replace(duration[0], '').replace(/שנים/g, '');
     if (longDuration) remaining = remaining.replace(/מחמ\s*ארו[ךכ](?:ה|ות|ים)?/, '');
-    return {raw, text, ratings, fee, currency, managers, unsupported, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
+    return {raw, text, ratings, fee, currency, managers, unsupported, mixed, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
       durationMode: duration?.[1] || 'סביב', longDuration};
   }
   const parsedQueries = new Map();
@@ -105,6 +107,7 @@
     const p = typeof query === 'string' ? parse(query) : query;
     const {f, title, manager, nameText, policyText, hay} = indexed(row);
     let reason = '', score = 10;
+    if(p.mixed){const ratios=[...nameText.matchAll(/(\d{1,2})\s*\/\s*(\d{1,2})/g)];const exposure=nameText.match(/עד\s*(\d+(?:\.\d+)?)\s*%\s*מניות/);if(!/מעורב/.test(norm(f.category))&&!ratios.some(r=>Number(r[1])+Number(r[2])===100)&&!(exposure&&Number(exposure[1])>0&&Number(exposure[1])<100))return {matched:false,score:0};}
     if(p.unsupported)return {matched:false,score:0};
     if(p.managers?.length&&!p.managers.includes(manager))return {matched:false,score:0};
     if(p.currency){const actual=norm(f.currency);if(actual!==norm(p.currency))return {matched:false,score:0};}
@@ -129,6 +132,7 @@
     for (const token of p.tokens) {
       if(token==='ratio20'){
         if(!/(?:80\s*\/\s*20|20\s*\/\s*80)/.test(nameText)&&!/עד\s*20\s*%?\s*מניות/.test(nameText+' '+policyText))return {matched:false,score:0};reason='יחס 80/20 או עד 20% מניות לפי הנתונים';score+=40;
+      } else if (/^ratio\d+$/.test(token)&&token!=='ratio10'){const cap=Number(token.slice(5)),ratios=[...nameText.matchAll(/(\d{1,2})\s*\/\s*(\d{1,2})/g)];if(!ratios.some(r=>Number(r[1])+Number(r[2])===100&&Math.min(Number(r[1]),Number(r[2]))===cap))return {matched:false,score:0};reason='הרכב '+(100-cap)+'/'+cap+' מפורש';score+=40;
       } else if (token === 'ratio10') {
         if (/(?:90\s*\/\s*10|10\s*\/\s*90)/.test(nameText)) {reason = 'יחס 90/10 בשם / במסלול'; score += 60;}
         else if (/עד\s*10\s*%?\s*מניות/.test(nameText + ' ' + policyText)) {reason = 'עד 10% מניות לפי הנתונים'; score += 40;}
@@ -145,8 +149,9 @@
     else if (p.tokens.every(t => title.includes(t))) score += 30;
     return {matched: true, score, reason: reason || (p.raw ? 'התאמה בשם / בפרטי הקרן' : '')};
   }
-  function describe(query){const p=parse(query),parts=[];if(p.unsupported)parts.push('נדרש נתון שאינו נתמך בחיפוש');if(p.managers.length)parts.push('מנהל: '+p.managers.join(' או '));if(p.ratings.length)parts.push('דירוג דיסקונט: '+p.ratings.join(' או '));if(p.fee)parts.push('דמי ניהול '+p.fee.mode+' '+p.fee.value+'%');if(p.currency)parts.push('סיווג מטבעי: '+p.currency);if(p.duration!==null)parts.push('מח״מ '+p.durationMode+' '+p.duration);if(p.longDuration)parts.push('מח״מ ארוך מפורש');if(p.tokens.length)parts.push('מאפייני חיפוש: '+p.tokens.map(x=>x==='ratio10'?'90/10':x==='ratio20'?'80/20':x).join(' · '));return parts.join(' · ');}
-  const api = {norm, fields, parse, match, durationOf, setCatalog, describe};
+  function describe(query){const p=parse(query),parts=[];if(p.unsupported)parts.push('נדרש נתון שאינו נתמך בחיפוש');if(p.mixed)parts.push('קרנות מעורבות לפי סיווג או הרכב מפורש');if(p.managers.length)parts.push('מנהל: '+p.managers.join(' או '));if(p.ratings.length)parts.push('דירוג דיסקונט: '+p.ratings.join(' או '));if(p.fee)parts.push('דמי ניהול '+p.fee.mode+' '+p.fee.value+'%');if(p.currency)parts.push('סיווג מטבעי: '+p.currency);if(p.duration!==null)parts.push('מח״מ '+p.durationMode+' '+p.duration);if(p.longDuration)parts.push('מח״מ ארוך מפורש');if(p.tokens.length)parts.push('מאפייני חיפוש: '+p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' · '));return parts.join(' · ');}
+  function conditions(query){const p=parse(query),out=[];const add=(id,label,query)=>out.push({id,label,query});if(p.mixed)add('mixed','קרנות מעורבות','מעורבות');if(p.managers.length)add('managers','מנהל: '+p.managers.join(' או '),p.managers.join(' '));if(p.ratings.length)add('ratings','דירוג '+p.ratings.join(' או '),'דירוג '+p.ratings.join(','));if(p.fee)add('fee','דמי ניהול '+p.fee.mode+' '+p.fee.value+'%','דמי ניהול '+p.fee.mode+' '+p.fee.value);if(p.currency)add('currency',p.currency==='דולר'?'נקובה בדולר':p.currency+' מט״ח',p.currency==='דולר'?'נקובה בדולר':p.currency+' מטח');if(p.duration!==null)add('duration','מח״מ '+p.durationMode+' '+p.duration,'מחמ '+p.durationMode+' '+p.duration);if(p.longDuration)add('longDuration','מח״מ ארוך','מחמ ארוך');if(p.tokens.length){const q=p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' ');add('text',q,q)}return out;}
+  const api = {norm, fields, parse, match, durationOf, setCatalog, describe, conditions};
   host.FundSearch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window === 'undefined' ? globalThis : window);
