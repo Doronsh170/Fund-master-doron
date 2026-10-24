@@ -1,8 +1,8 @@
-name: רענון חודשי של ביצועי מאיה
+name: רענון ביצועי מאיה כל שלושה ימים
 
 on:
   schedule:
-    - cron: '17 6 1 * *'
+    - cron: '17 6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -22,11 +22,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24'
+      - name: בדיקת מועד הרענון
+        id: cadence
+        run: node scripts/maya-refresh-due.cjs
       - name: שליפת נתונים לכל הקרנות
+        if: steps.cadence.outputs.due == 'true'
         run: node scripts/refresh-maya-performance.cjs
       - name: בדיקת שלמות הנתונים
+        if: steps.cadence.outputs.due == 'true'
         run: node tests/maya-performance-data.test.cjs
       - name: יצירת בקשת משיכה לעדכון הנתונים בלבד
+        if: steps.cadence.outputs.due == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -45,7 +51,7 @@ jobs:
           git commit -m 'Refresh dated MAYA performance data'
           git push origin "$branch"
           node -e "const d=require('./maya-performance-data.js'); console.log('עדכון נתוני הביצועים ממאיה.\n\n'+JSON.stringify(d.report,null,2)+'\n\nהעדכון ממתין לבדיקה. אין מיזוג אוטומטי.');" > /tmp/maya-refresh-body.txt
-          if ! gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title 'עדכון חודשי של נתוני ביצועים ממאיה' --body-file /tmp/maya-refresh-body.txt; then
+          if ! gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title 'עדכון נתוני ביצועים ממאיה' --body-file /tmp/maya-refresh-body.txt; then
             echo 'הנתונים נשמרו בענף נפרד. יש לאפשר יצירת בקשות משיכה באמצעות GitHub Actions בהגדרות המאגר, או לפתוח בקשה מהענף:' >> "$GITHUB_STEP_SUMMARY"
             echo "https://github.com/${GITHUB_REPOSITORY}/compare/${DEFAULT_BRANCH}...${branch}" >> "$GITHUB_STEP_SUMMARY"
             exit 1
