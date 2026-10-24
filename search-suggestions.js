@@ -15,7 +15,7 @@ const close=()=>{list.hidden=true;input.setAttribute('aria-expanded','false');in
 function choose(choice){input.value=choice.query;closed=true;input.dispatchEvent(new Event('input',{bubbles:true}));close();input.blur();}
 function select(index){selected=index;list.querySelectorAll('[role=option]').forEach((b,i)=>b.setAttribute('aria-selected',String(i===selected)));if(index>=0)input.setAttribute('aria-activedescendant','fund-suggestion-'+index);else input.removeAttribute('aria-activedescendant');}
 function render(){
-const q=norm(input.value);if(!q||closed){close();return;}
+const q=norm(input.value);if(window.FundGuidance?.active(input.value)){close();return;}if(!q||closed){close();return;}
 const matches=terms.filter(t=>norm(t).includes(q)).map(label=>({label,query:label,count:funds.filter(f=>FundSearch.match(f,label).matched).length,kind:'חיפוש'})).filter(x=>x.count>0).sort((a,b)=>Number(norm(b.label).startsWith(q))-Number(norm(a.label).startsWith(q))||b.count-a.count||a.label.localeCompare(b.label,'he'));
 const exact=matches.filter(x=>norm(x.label)===q);const related=matches.filter(x=>norm(x.label)!==q);
 const rows=funds.filter(f=>FundSearch.match(f,input.value).matched).sort((a,b)=>FundSearch.match(b,input.value).score-FundSearch.match(a,input.value).score);
