@@ -28,10 +28,12 @@
       .replace(/\b90\s*\/\s*10\b|\b10\s*\/\s*90\b/g, 'ratio10');
     const duration = text.match(/מחמ\s*(?:(לפחות|מעל|בדיוק|סביב)\s*)?(\d+(?:\.\d+)?)/);
     const longDuration = /מחמ\s*ארו[ךכ]/.test(text);
-    let remaining = text;
+    const ratingMatch=text.match(/דירוג(?:י)?(?:\s+דיסקונט)?\s*[:=]?\s*([1-5](?:\s*(?:,|ו|או|\/)\s*[1-5])*)(?![\d.])/);
+    const ratings=ratingMatch?[...new Set(ratingMatch[1].match(/[1-5]/g).map(Number))]:[];
+    let remaining = ratingMatch?text.replace(ratingMatch[0],' '):text;
     if (duration) remaining = remaining.replace(duration[0], '').replace(/שנים/g, '');
     if (longDuration) remaining = remaining.replace(/מחמ\s*ארו[ךכ](?:ה|ות|ים)?/, '');
-    return {raw, text, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
+    return {raw, text, ratings, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
       durationMode: duration?.[1] || 'סביב', longDuration};
   }
   const parsedQueries = new Map();
@@ -74,6 +76,7 @@
     const p = typeof query === 'string' ? parse(query) : query;
     const {f, title, manager, nameText, policyText, hay} = indexed(row);
     let reason = '', score = 10;
+    if(p.ratings?.length){if(!Number.isFinite(row.discountRating)||!p.ratings.includes(row.discountRating))return {matched:false,score:0};reason='דירוג דיסקונט היסטורי: '+row.discountRating;}
     if (p.duration !== null || p.longDuration) {
       const d = durationOf(f);
       if (p.duration !== null) {

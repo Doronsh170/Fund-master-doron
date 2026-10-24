@@ -24,7 +24,7 @@ const button=document.getElementById('shareWhatsApp');if(!button)return;
 button.textContent='שתף תוצאות בוואטסאפ ↗';
 button.addEventListener('click',()=>{
  const ids=['manager','category','currency','profile','rating','fee','typeFilter','denomFilter'];
- const filters=ids.map(id=>document.getElementById(id)).filter(e=>e&&e.value!=='').map(e=>({label:e.closest('label')?.firstChild?.textContent?.trim()||e.id,value:e.tagName==='SELECT'?e.selectedOptions[0]?.textContent:e.value+'%'}));
+ const filters=ids.map(id=>document.getElementById(id)).filter(e=>e&&filterValue(e.id)!=='').map(e=>({label:e.closest('label')?.firstChild?.textContent?.trim()||e.id,value:e.tagName==='SELECT'?Array.from(e.options).find(o=>o.value===filterValue(e.id))?.textContent:filterValue(e.id)+'%'}));
  const text=formatResults(filtered(),{query:document.getElementById('q').value,filters});
  if(!text)return;
  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener,noreferrer');
