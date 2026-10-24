@@ -23,7 +23,7 @@
   let managerNames=[];
   function setCatalog(rows){managerNames=[...new Set(rows.map(x=>norm(x.manager)).filter(Boolean))].sort((a,b)=>b.length-a.length);parsedQueries.clear();}
   function parseUncached(query) {
-    const raw = norm(query).replace(/בדירוג/g,'דירוג').replace(/בדמי ניהול/g,'דמי ניהול');
+    const raw = norm(query).replace(/בדירוג/g,'דירוג').replace(/בדמי ניהול/g,'דמי ניהול').replace(/כספיות/g,'כספית').replace(/דירוג(?:י)?(?:\s+דיסקונט)?\s+גבוה(?:ה|ים|ות)?/g,'דירוג 3,4,5');
     const text = raw.replace(/\b(?:nasdaq|nasdac)\b|נאסדאק|נסדאק|נאסדק|נסדק/g, 'nasdaq')
       .replace(/s\s*(?:&|and)\s*p\s*500|סנופי(?:\s*500)?|סנופי500/g, 's&p 500')
       .replace(/\busd\b|\bdollar\b|דולרי(?:ות|ת)?/g, 'דולר')
