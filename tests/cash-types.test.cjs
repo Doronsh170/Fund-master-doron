@@ -1,0 +1,5 @@
+const assert=require('node:assert/strict'),S=require('../search.js'),{rows}=require('../fund-catalog.js').build(require('../fund-sources.js'),require('../exchange-data.js'));S.setCatalog(rows);
+const queries=['כספית שקלית','כספית חשופת מטח','כספית נקובה בדולר'];for(const q of queries){const found=rows.filter(x=>S.match(x,q).matched);assert(found.length>0,q);assert.deepEqual(found.map(x=>x.number),rows.filter(x=>S.match(x,S.conditions(q).map(c=>c.query).join(' ')).matched).map(x=>x.number));}
+assert(!S.match({name:'כספית דולרית',currency:'חשופה',denomination:'לא'},queries[2]).matched);assert(!S.match({name:'כספית',currency:'לא ידוע',profile:'0D'},queries[1]).matched);assert(!S.match({name:'כספית',currency:'לא ידוע'},queries[0]).matched);assert(!S.match({name:'כספית נקובה באירו',currency:'חשופה',denomination:'כן',note:'חשיפה לדולר'},queries[2]).matched);
+assert(S.match({name:'כספית נקובה בדולר',currency:'חשופה',denomination:'כן'},queries[1]).matched);assert(S.match({name:'כספית נקובה בדולר',currency:'חשופה',denomination:'כן'},queries[2]).matched);
+console.log('Cash types, strict USD denomination, missing FX/ILS and overlapping traits passed.');

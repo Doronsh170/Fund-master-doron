@@ -55,6 +55,10 @@
     const feeMatch=remaining.match(/(?:דמי\s*ניהול|דמנ)\s*(?:של\s*)?(עד|לכל היותר|לא יותר מ|מתחת ל|פחות מ|מעל|לפחות|בדיוק)?\s*[-:=]?\s*(\d+(?:\.\d+)?)\s*(?:%|אחוז(?:ים)?)?/);
     const fee=feeMatch?{value:Number(feeMatch[2]),mode:feeMatch[1]||'בדיוק'}:null;
     if(feeMatch)remaining=remaining.replace(feeMatch[0],' ');
+    let cashType=null;
+    if(/(?:^|\s)כספית(?=\s|$)/.test(remaining)){
+      for(const [pattern,value] of [[/נקובה\s*(?:ב)?דולר/,'usd'],[/חשופה\s*(?:ל)?מטח/,'fx'],[/שקלית/,'ils']])if(pattern.test(remaining)){cashType=value;remaining=remaining.replace(pattern,' ');break;}
+    }
     let currency=null;
     for(const [pattern,value] of [[/מנוטרל(?:ת|ות|ים)?\s*(?:מטח|מטבע(?:\s*חוץ)?)/,'מנוטרלת'],[/ללא\s*חשיפ(?:ה|ת)\s*(?:ל)?(?:מטח|מטבע\s*חוץ)/,'מנוטרלת'],[/חשופ(?:ה|ת|ות|ים)?\s*(?:ל)?מטח/,'חשופה'],[/נקוב(?:ה|ת|ות|ים)?\s*(?:ב)?דולר/,'דולר']]){if(pattern.test(remaining)){currency=value;remaining=remaining.replace(pattern,' ');break}}
     const unsupported=/תשוא(?:ה|ות)|סטיית\s+תקן|סיכון|לא\s+מנוטרל/.test(remaining);
@@ -64,7 +68,7 @@
     remaining=remaining.replace(/(?:^|\s)(?:אני|מחפש|מחפשת|רוצה|קרן|קרנות|של|עם|שהיא|שהן|לי|בבקשה|להשקיע|השקעה)(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
     if (duration) remaining = remaining.replace(duration[0], '').replace(/שנים/g, '');
     if (longDuration) remaining = remaining.replace(/מחמ\s*ארו[ךכ](?:ה|ות|ים)?/, '');
-    return {raw, text, ratings, fee, currency, managers, unsupported, mixed, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
+    return {raw, text, ratings, fee, currency, managers, unsupported, mixed, cashType, tokens: remaining.trim().split(/\s+/).filter(Boolean), duration: duration ? Number(duration[2]) : null,
       durationMode: duration?.[1] || 'סביב', longDuration};
   }
   const parsedQueries = new Map();
@@ -107,6 +111,7 @@
     const p = typeof query === 'string' ? parse(query) : query;
     const {f, title, manager, nameText, policyText, hay} = indexed(row);
     let reason = '', score = 10;
+    if(p.cashType){const currency=norm(f.currency),name=norm(f.name),usd=/דולר|\$|\busd\b/.test(norm(f.name));const fits=p.cashType==='ils'?(currency==='שקל'||/(?:^|\s)שקלית(?=\s|$)/.test(name)):p.cashType==='fx'?currency==='חשופה':row.denomination==='כן'&&usd;if(!fits)return {matched:false,score:0};}
     if(p.mixed){const ratios=[...nameText.matchAll(/(\d{1,2})\s*\/\s*(\d{1,2})/g)];const exposure=nameText.match(/עד\s*(\d+(?:\.\d+)?)\s*%\s*מניות/);if(!/מעורב/.test(norm(f.category))&&!ratios.some(r=>Number(r[1])+Number(r[2])===100)&&!(exposure&&Number(exposure[1])>0&&Number(exposure[1])<100))return {matched:false,score:0};}
     if(p.unsupported)return {matched:false,score:0};
     if(p.managers?.length&&!p.managers.includes(manager))return {matched:false,score:0};
@@ -149,8 +154,8 @@
     else if (p.tokens.every(t => title.includes(t))) score += 30;
     return {matched: true, score, reason: reason || (p.raw ? 'התאמה בשם / בפרטי הקרן' : '')};
   }
-  function describe(query){const p=parse(query),parts=[];if(p.unsupported)parts.push('נדרש נתון שאינו נתמך בחיפוש');if(p.mixed)parts.push('קרנות מעורבות לפי סיווג או הרכב מפורש');if(p.managers.length)parts.push('מנהל: '+p.managers.join(' או '));if(p.ratings.length)parts.push('דירוג דיסקונט: '+p.ratings.join(' או '));if(p.fee)parts.push('דמי ניהול '+p.fee.mode+' '+p.fee.value+'%');if(p.currency)parts.push('סיווג מטבעי: '+p.currency);if(p.duration!==null)parts.push('מח״מ '+p.durationMode+' '+p.duration);if(p.longDuration)parts.push('מח״מ ארוך מפורש');if(p.tokens.length)parts.push('מאפייני חיפוש: '+p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' · '));return parts.join(' · ');}
-  function conditions(query){const p=parse(query),out=[];const add=(id,label,query)=>out.push({id,label,query});if(p.mixed)add('mixed','קרנות מעורבות','מעורבות');if(p.managers.length)add('managers','מנהל: '+p.managers.join(' או '),p.managers.join(' '));if(p.ratings.length)add('ratings','דירוג '+p.ratings.join(' או '),'דירוג '+p.ratings.join(','));if(p.fee)add('fee','דמי ניהול '+p.fee.mode+' '+p.fee.value+'%','דמי ניהול '+p.fee.mode+' '+p.fee.value);if(p.currency)add('currency',p.currency==='דולר'?'נקובה בדולר':p.currency+' מט״ח',p.currency==='דולר'?'נקובה בדולר':p.currency+' מטח');if(p.duration!==null)add('duration','מח״מ '+p.durationMode+' '+p.duration,'מחמ '+p.durationMode+' '+p.duration);if(p.longDuration)add('longDuration','מח״מ ארוך','מחמ ארוך');if(p.tokens.length){const q=p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' ');add('text',q,q)}return out;}
+  function describe(query){const p=parse(query),parts=[];if(p.unsupported)parts.push('נדרש נתון שאינו נתמך בחיפוש');if(p.cashType)parts.push('סוג כספית: '+({ils:'שקלית',fx:'חשופת מט״ח',usd:'נקובה בדולר'}[p.cashType]));if(p.mixed)parts.push('קרנות מעורבות לפי סיווג או הרכב מפורש');if(p.managers.length)parts.push('מנהל: '+p.managers.join(' או '));if(p.ratings.length)parts.push('דירוג דיסקונט: '+p.ratings.join(' או '));if(p.fee)parts.push('דמי ניהול '+p.fee.mode+' '+p.fee.value+'%');if(p.currency)parts.push('סיווג מטבעי: '+p.currency);if(p.duration!==null)parts.push('מח״מ '+p.durationMode+' '+p.duration);if(p.longDuration)parts.push('מח״מ ארוך מפורש');if(p.tokens.length)parts.push('מאפייני חיפוש: '+p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' · '));return parts.join(' · ');}
+  function conditions(query){const p=parse(query),out=[];const add=(id,label,query)=>out.push({id,label,query});if(p.cashType)add('cashType',({ils:'שקלית',fx:'חשופת מט״ח',usd:'נקובה בדולר'}[p.cashType]),({ils:'שקלית',fx:'חשופה מטח',usd:'נקובה בדולר'}[p.cashType]));if(p.mixed)add('mixed','קרנות מעורבות','מעורבות');if(p.managers.length)add('managers','מנהל: '+p.managers.join(' או '),p.managers.join(' '));if(p.ratings.length)add('ratings','דירוג '+p.ratings.join(' או '),'דירוג '+p.ratings.join(','));if(p.fee)add('fee','דמי ניהול '+p.fee.mode+' '+p.fee.value+'%','דמי ניהול '+p.fee.mode+' '+p.fee.value);if(p.currency)add('currency',p.currency==='דולר'?'נקובה בדולר':p.currency+' מט״ח',p.currency==='דולר'?'נקובה בדולר':p.currency+' מטח');if(p.duration!==null)add('duration','מח״מ '+p.durationMode+' '+p.duration,'מחמ '+p.durationMode+' '+p.duration);if(p.longDuration)add('longDuration','מח״מ ארוך','מחמ ארוך');if(p.tokens.length){const q=p.tokens.map(x=>/^ratio\d+$/.test(x)?(100-Number(x.slice(5)))+'/'+Number(x.slice(5)):x).join(' ');add('text',q,q)}return out;}
   const api = {norm, fields, parse, match, durationOf, setCatalog, describe, conditions};
   host.FundSearch = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
