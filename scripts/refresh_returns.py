@@ -43,6 +43,7 @@ def describe_shape(value,depth=0):
     return value
 def main():
     p=argparse.ArgumentParser()
+    p.add_argument("--probe-only",action="store_true")
     p.add_argument("--max-age",type=int,default=5)
     p.add_argument("--min-coverage",type=float,default=.90)
     args=p.parse_args()
@@ -55,6 +56,11 @@ def main():
     sample=next((v for v in all_records.values() if v.get("status")=="available" and v.get("sourceApi")),None)
     if sample is None: raise RuntimeError("No fund with a valid source URL")
     sample_payload=get_json(sample["sourceApi"],session)
+    if args.probe_only:
+        diagnostic={"fund":sample["number"],"url":sample["sourceApi"],"response_shape":describe_shape(sample_payload)}
+        (ROOT/"maya-api-diagnostic.json").write_text(json.dumps(diagnostic,ensure_ascii=False,indent=2),encoding="utf-8")
+        print("One-fund MAYA response structure captured. No fund performance changed.",flush=True)
+        return
     try:
         extract(sample_payload)
     except ValueError:
