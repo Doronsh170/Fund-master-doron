@@ -18,17 +18,20 @@ jobs:
       - run: python -m pip install requests
       - name: Capture one-fund API schema
         run: python scripts/refresh_returns.py --probe-only
-      - name: Probe historical NAV CSV
+      - name: Probe NAV history coverage
         run: |
           python - <<'PY'
-          import requests,json,datetime
+          import requests,json,csv,io
           u="https://maya.tase.co.il/api/v1/funds/mutual/5100144/history/file"
-          p={"pageSize":20,"pageNumber":1,"period":4,"fromDate":"2025-10-01T00:00:00.000Z","toDate":"2026-10-29T00:00:00.000Z"}
-          try:
-            r=requests.post(u,json=p,headers={"Origin":"https://maya.tase.co.il","Referer":"https://maya.tase.co.il/","Accept":"text/csv","User-Agent":"Mozilla/5.0"},timeout=30)
-            d={"status":r.status_code,"contentType":r.headers.get("Content-Type"),"sample":r.text[:2800]}
-          except Exception as e:d={"error":str(e)}
-          open("maya-nav-probe.json","w").write(json.dumps(d,ensure_ascii=False,indent=2))
+          out=[]
+          for period in [0,1,2,3,4,5,6,12]:
+            p={"pageSize":600,"pageNumber":1,"period":period,"fromDate":"2025-09-01T00:00:00.000Z","toDate":"2026-10-29T00:00:00.000Z"}
+            try:
+              r=requests.post(u,json=p,headers={"Origin":"https://maya.tase.co.il","Referer":"https://maya.tase.co.il/","Accept":"text/csv","User-Agent":"Mozilla/5.0"},timeout=30)
+              rows=list(csv.reader(io.StringIO(r.content.decode("utf-8-sig"))))
+              out.append({"period":period,"status":r.status_code,"rowCount":len(rows)-1,"first":rows[1][:2] if len(rows)>1 else None,"last":rows[-1][:2] if len(rows)>1 else None})
+            except Exception as e:out.append({"period":period,"error":str(e)})
+          open("maya-nav-probe.json","w").write(json.dumps(out,ensure_ascii=False,indent=2))
           PY
       - name: Save diagnostic
         run: |
