@@ -1,0 +1,116 @@
+{
+  "fund": "5100144",
+  "url": "https://maya.tase.co.il/api/v1/funds/mutual/5100144",
+  "response_shape": {
+    "fundId": 5100144,
+    "name": {
+      "type": "str",
+      "sample": "איביאי יתר"
+    },
+    "longName": {
+      "type": "str",
+      "sample": "אי.בי.אי. (4A) יתר"
+    },
+    "fundType": {
+      "type": "str",
+      "sample": "קרן פתוחה"
+    },
+    "fundTypeId": 1,
+    "isin": {
+      "type": "str",
+      "sample": "IL0051001449"
+    },
+    "deleted": false,
+    "mutualFundSubType": 1,
+    "mergingLiquidationStatus": null,
+    "managerId": 10068,
+    "managerName": {
+      "type": "str",
+      "sample": "איביאי קרנות נאמנות "
+    },
+    "trusteeId": 10013,
+    "trusteeName": {
+      "type": "str",
+      "sample": "יובנק נאמנות"
+    },
+    "managementFee": 2.71,
+    "trusteeFee": 0.05,
+    "variableFee": null,
+    "purchasePrice": 1428.82,
+    "redemptionPrice": 1428.82,
+    "ratesAsOf": {
+      "type": "str",
+      "sample": "2026-10-28"
+    },
+    "assetValueNISMillions": 37.8,
+    "assetValueAsOf": {
+      "type": "str",
+      "sample": "2026-09-30T00:00:00"
+    },
+    "saleLoad": 0.0,
+    "taxStatusName": {
+      "type": "str",
+      "sample": "פטורה"
+    },
+    "isInternational": false,
+    "distributionCommissionName": {
+      "type": "str",
+      "sample": "0.35%"
+    },
+    "paymentPolicyName": {
+      "type": "str",
+      "sample": "לא מתחייבת לחלק תשלומים"
+    },
+    "designatedHours": {
+      "type": "str",
+      "sample": "ביום ו' - 13:00, בימים ב'-ה' - 16:00"
+    },
+    "tradingSuspendDescription": null,
+    "lastProspectusReportId": 169810,
+    "lastAnnualReportId": 1773110,
+    "lastMonthlyReportId": 1763828,
+    "fundTransition": null,
+    "exposureProfile": {
+      "shareSymbol": {
+        "type": "str",
+        "sample": "4"
+      },
+      "fxSymbol": {
+        "type": "str",
+        "sample": "A"
+      },
+      "sharesDesc": {
+        "type": "str",
+        "sample": "עד 120% מהשווי הנקי של נכסי הקרן"
+      },
+      "fxDesc": {
+        "type": "str",
+        "sample": "עד 10% מהשווי הנקי של נכסי הקרן"
+      }
+    },
+    "classification": {
+      "major": {
+        "type": "str",
+        "sample": "מניות בארץ"
+      },
+      "main": {
+        "type": "str",
+        "sample": "מניות לפי שווי שוק"
+      },
+      "secondary": {
+        "type": "str",
+        "sample": "מניות Small Cap"
+      }
+    },
+    "features": {
+      "length": 10,
+      "first": {
+        "title": {
+          "type": "str",
+          "sample": "הקרן הינה קרן בלתי מוגבלת בני\"ע חוץ"
+        },
+        "enabled": false
+      }
+    }
+  }
+}
