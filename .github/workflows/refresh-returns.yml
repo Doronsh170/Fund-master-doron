@@ -1,31 +1,33 @@
-name: Refresh MAYA fund returns
+name: Refresh official MAYA fund returns
 on:
   workflow_dispatch:
   push:
     paths:
       - 'refresh-request.txt'
 concurrency:
-  group: fund-returns-refresh
-  cancel-in-progress: true
+  group: official-maya-fund-refresh
+  cancel-in-progress: false
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.12'
-      - run: python -m pip install requests
-      - name: Refresh and validate returns
-        run: python scripts/refresh_returns.py --max-age 5 --min-coverage 0.75
-      - name: Commit validated updates
+          node-version: '22'
+      - name: Fetch exact official MAYA yields
+        run: node scripts/refresh-maya-performance.cjs
+      - name: Validate returned data
+        run: node tests/maya-performance-data.test.cjs
+      - name: Commit verified official figures
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add maya-performance/ maya-performance-data.js
           if ! git diff --cached --quiet; then
-            git commit -m "Refresh verified MAYA fund returns"
+            git commit -m "Refresh exact official MAYA reported returns"
             git push
           fi
