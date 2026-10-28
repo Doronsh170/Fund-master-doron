@@ -18,11 +18,23 @@ jobs:
       - run: python -m pip install requests
       - name: Capture one-fund API schema
         run: python scripts/refresh_returns.py --probe-only
+      - name: Probe historical NAV CSV
+        run: |
+          python - <<'PY'
+          import requests,json,datetime
+          u="https://maya.tase.co.il/api/v1/funds/mutual/5100144/history/file"
+          p={"pageSize":20,"pageNumber":1,"period":4,"fromDate":"2025-10-01T00:00:00.000Z","toDate":"2026-10-29T00:00:00.000Z"}
+          try:
+            r=requests.post(u,json=p,headers={"Origin":"https://maya.tase.co.il","Referer":"https://maya.tase.co.il/","Accept":"text/csv","User-Agent":"Mozilla/5.0"},timeout=30)
+            d={"status":r.status_code,"contentType":r.headers.get("Content-Type"),"sample":r.text[:2800]}
+          except Exception as e:d={"error":str(e)}
+          open("maya-nav-probe.json","w").write(json.dumps(d,ensure_ascii=False,indent=2))
+          PY
       - name: Save diagnostic
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add maya-api-diagnostic.json
+          git add maya-api-diagnostic.json maya-nav-probe.json
           if ! git diff --cached --quiet; then
             git commit -m "Record MAYA API response schema"
             git push
