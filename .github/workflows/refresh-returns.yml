@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '.github/workflows/refresh-returns.yml'
+      - 'refresh-request.txt'
+concurrency:
+  group: fund-returns-refresh
+  cancel-in-progress: true
 jobs:
   refresh:
     runs-on: ubuntu-latest
