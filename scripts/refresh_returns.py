@@ -48,7 +48,9 @@ def main():
     new={}
     failures=[]
     today=dt.datetime.now(dt.timezone.utc).date()
-    for i,(number,rec) in enumerate(all_records.items(),1):
+    eligible={number:rec for number,rec in all_records.items() if rec.get("status")=="available"}
+    if not eligible: raise RuntimeError("No previously available funds")
+    for i,(number,rec) in enumerate(eligible.items(),1):
         url=rec.get("sourceApi")
         if not url or not url.startswith("https://maya.tase.co.il/api/v1/funds/"):
             failures.append((number,"missing source API"));new[number]=rec;continue
@@ -64,16 +66,18 @@ def main():
             new[number]={**rec,"rows":result["rows"],"asOf":result["asOf"],"status":"available","fetchedAt":dt.datetime.now(dt.timezone.utc).isoformat()}
         except Exception as exc:
             failures.append((number,str(exc)));new[number]=rec
-        if i%200==0: print(f"Checked {i}/{len(all_records)}",flush=True)
-    coverage=(len(all_records)-len(failures))/len(all_records)
-    print(f"Successfully refreshed {len(all_records)-len(failures)}/{len(all_records)} ({coverage:.1%})")
+        if i%200==0: print(f"Checked {i}/{len(eligible)}",flush=True)
+    coverage=(len(eligible)-len(failures))/len(eligible)
+    print(f"Successfully refreshed {len(eligible)-len(failures)}/{len(eligible)} funds ({coverage:.1%})")
     for item in failures[:30]: print("Not refreshed:",*item)
     if coverage<args.min_coverage: raise RuntimeError("Insufficient verified coverage: no files were changed")
+    if not any(new[k].get("asOf")!=record.get("asOf") for k,record in eligible.items()):
+        raise RuntimeError("No newer verified return dates; keeping existing data")
     for path,original in zip(paths,old):
-        chunk={k:new[k] for k in original}
+        chunk={k:new.get(k,all_records[k]) for k in original}
         data=json.dumps(chunk,ensure_ascii=False,separators=(",",":"))
         path.write_text('(function(root){const data='+data+';if(typeof module!=="undefined"&&module.exports)module.exports=data;else(root.FUND_PERFORMANCE_PARTS ||= []).push(data);})(typeof window==="undefined"?globalThis:window);',encoding="utf-8")
-    report={"requestFailures":len(failures),"total":len(all_records),"generatedAt":dt.datetime.now(dt.timezone.utc).isoformat(),"counts":{status:sum(r.get("status")==status for r in new.values()) for status in ("available","not-found","not-provided")}}
+    report={"requestFailures":len(failures),"total":len(all_records),"generatedAt":dt.datetime.now(dt.timezone.utc).isoformat(),"counts":{status:sum(r.get("status")==status for r in (new.get(k,v) for k,v in all_records.items())) for status in ("available","not-found","not-provided")}}
     pth=ROOT/"maya-performance-data.js"
     src=pth.read_text(encoding="utf-8")
     src,count=re.subn(r'const report=\{.*?\};const funds=',"const report="+json.dumps(report,ensure_ascii=False,separators=(",",":"))+";const funds=",src,count=1)
