@@ -35,6 +35,12 @@ def extract(payload):
             if all(isinstance(r.get("fund"),(int,float)) and not isinstance(r.get("fund"),bool) and -100<=r["fund"]<=10000 for r in rows):
                 return {"rows":rows,"asOf":asof[:10],"name":node.get("name")}
     raise ValueError("API schema not recognized; refusing to publish unverified returns")
+def describe_shape(value,depth=0):
+    if depth>=5: return type(value).__name__
+    if isinstance(value,dict): return {k:describe_shape(v,depth+1) for k,v in list(value.items())[:35] if not any(t in k.lower() for t in ("token","secret","password","cookie"))}
+    if isinstance(value,list): return {"length":len(value),"first":describe_shape(value[0],depth+1) if value else None}
+    if isinstance(value,str): return {"type":"str","sample":value[:90]}
+    return value
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--max-age",type=int,default=5)
@@ -45,6 +51,16 @@ def main():
     old=[parse_part(path) for path in paths]
     all_records={k:v for part in old for k,v in part.items()}
     session=requests.Session()
+    # Probe one known fund before thousands of requests. Never publish on unknown schemas.
+    sample=next((v for v in all_records.values() if v.get("status")=="available" and v.get("sourceApi")),None)
+    if sample is None: raise RuntimeError("No fund with a valid source URL")
+    sample_payload=get_json(sample["sourceApi"],session)
+    try:
+        extract(sample_payload)
+    except ValueError:
+        diagnostic={"fund":sample["number"],"url":sample["sourceApi"],"response_shape":describe_shape(sample_payload)}
+        print("MAYA_API_DIAGNOSTIC="+json.dumps(diagnostic,ensure_ascii=False),flush=True)
+        raise RuntimeError("MAYA returned an unknown schema. Stopped after ONE request; no files changed.")
     new={}
     failures=[]
     today=dt.datetime.now(dt.timezone.utc).date()
