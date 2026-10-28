@@ -34,8 +34,8 @@ function show(button){
   for(const label of ['תקופה','תשואת הקרן','תשואת הסיווג']){const th=element('th',label);th.scope='col';hr.append(th);}head.append(hr);table.append(head);
   const body=element('tbody');for(const row of snapshot.rows){const tr=element('tr'),period=element('th',row.period);period.scope='row';tr.append(period);for(const value of [row.fund,row.classification]){const td=element('td',percent(value));td.dir='ltr';tr.append(td);}body.append(tr);}table.append(body);popup.append(table);
   if(snapshot.deleted)popup.append(element('p','הקרן מסומנת כ״מחוקה״ במאיה; הנתונים היסטוריים.','performance-unavailable'));
-  popup.append(element('p','תשואת הסיווג היא ממוצע סיווג הקרן כפי שמוצג במאיה.','performance-caption'));
-  popup.append(element('p','* לפי הגדרת 12 החודשים במאיה, מתחילת החודש הקלנדרי הראשון בתקופה.','performance-caption'));
+  if(snapshot.returnMethod==='nav-price-change')popup.append(element('p','תשואות מחושבות משינוי במחיר הפדיון במאיה; אינן כוללות חלוקות או השקעה מחדש. אין נתון סיווג עדכני מאומת.','performance-caption'));else popup.append(element('p','תשואת הסיווג היא ממוצע סיווג הקרן כפי שמוצג במאיה.','performance-caption'));
+  if(snapshot.returnMethod!=='nav-price-change')popup.append(element('p','* לפי הגדרת 12 החודשים במאיה, מתחילת החודש הקלנדרי הראשון בתקופה.','performance-caption'));
   popup.append(element('p','נתוני הרענון · בדיקה אחרונה: '+displayDate(snapshot.fetchedAt),'performance-caption'));
   if(snapshot.refreshWarning)popup.append(element('p','העדכון האחרון לקרן לא הושלם; מוצגים הנתונים השמורים מתאריך המקור.','performance-unavailable'));
  }else {
