@@ -43,9 +43,42 @@ function show(button){
   popup.append(element('p',message,'performance-unavailable'));
   if(record?.fetchedAt)popup.append(element('div','בדיקה אחרונה: '+displayDate(record.fetchedAt),'performance-date'));
  }
- const link=element('a','פתיחת הקרן במאיה ↗');link.href=record?.source||'https://maya.tase.co.il/he/funds/mutual-funds/'+encodeURIComponent(number);link.removeAttribute('target');link.removeAttribute('rel');popup.append(link);
+ const link=element('a','פתיחת הקרן במאיה ↗');link.href=record?.source||'https://maya.tase.co.il/he/funds/mutual-funds/'+encodeURIComponent(number);link.removeAttribute('target');link.removeAttribute('rel');link.addEventListener('click',event=>{event.preventDefault();openMayaViewer(link.href);});popup.append(link);
  popup.hidden=false;button.setAttribute('aria-expanded','true');position();
 }
+let mayaViewer=null,mayaPreviousOverflow='';
+function closeMayaViewer(){
+ if(!mayaViewer)return;
+ mayaViewer.remove();
+ mayaViewer=null;
+ document.body.style.overflow=mayaPreviousOverflow;
+}
+function openMayaViewer(url){
+ if(!/^https:\/\/maya\.tase\.co\.il\//.test(url))return;
+ closeMayaViewer();
+ hide();
+ mayaPreviousOverflow=document.body.style.overflow;
+ document.body.style.overflow='hidden';
+ const overlay=document.createElement('section');
+ overlay.id='maya-embedded-viewer';
+ Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'2147483647',background:'#fff',display:'flex',flexDirection:'column',height:'100dvh',width:'100%',direction:'rtl'});
+ overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','צפייה בקרן במאיה');
+ const top=document.createElement('div');
+ Object.assign(top.style,{display:'flex',alignItems:'center',justifyContent:'space-between',flex:'0 0 auto',padding:'max(env(safe-area-inset-top), 10px) 16px 10px',minHeight:'64px',background:'#fff',borderBottom:'1px solid #d9e1ed'});
+ const title=document.createElement('strong');title.textContent='מאיה · נתוני הקרן';title.style.fontSize='16px';
+ const close=document.createElement('button');close.type='button';close.textContent='✕';close.setAttribute('aria-label','סגור מאיה וחזור למאתר');
+ Object.assign(close.style,{border:'1px solid #ccd5e2',borderRadius:'50%',width:'44px',height:'44px',fontSize:'23px',background:'#fff',color:'#162a45',cursor:'pointer'});
+ close.onclick=closeMayaViewer;top.append(title,close);
+ const body=document.createElement('div');Object.assign(body.style,{flex:'1',minHeight:'0',position:'relative'});
+ const frame=document.createElement('iframe');frame.src=url;frame.title='אתר מאיה';frame.referrerPolicy='strict-origin-when-cross-origin';
+ Object.assign(frame.style,{width:'100%',height:'100%',border:'0',display:'block'});
+ const fallback=document.createElement('div');Object.assign(fallback.style,{position:'absolute',bottom:'max(env(safe-area-inset-bottom), 10px)',left:'12px',right:'12px',padding:'10px 12px',borderRadius:'12px',background:'rgba(255,255,255,.96)',boxShadow:'0 2px 12px #0002',fontSize:'13px',color:'#43546b',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'});
+ const note=document.createElement('span');note.textContent='אם מאיה אינה מוצגת, ייתכן שהאתר חוסם פתיחה בתוך המאתר.';
+ const external=document.createElement('a');external.href=url;external.target='_blank';external.rel='noopener noreferrer';external.textContent='פתח במאיה';external.style.whiteSpace='nowrap';
+ fallback.append(note,external);body.append(frame,fallback);overlay.append(top,body);
+ document.body.append(overlay);mayaViewer=overlay;close.focus();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMayaViewer();});
 function laterHide(){if(!pinned)closeTimer=setTimeout(hide,180);}
 document.addEventListener('mouseover',e=>{const b=e.target.closest('[data-fund-performance]');if(b&&(!pinned||b===trigger))show(b);});
 document.addEventListener('mouseout',e=>{const b=e.target.closest('[data-fund-performance]');if(b&&b===trigger&&!b.contains(e.relatedTarget)&&!popup.contains(e.relatedTarget))laterHide();});
