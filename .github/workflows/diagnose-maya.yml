@@ -5,6 +5,9 @@ on:
       - 'scripts/refresh_returns.py'
       - '.github/workflows/diagnose-maya.yml'
   workflow_dispatch:
+concurrency:
+  group: official-maya-fund-refresh
+  cancel-in-progress: false
 jobs:
   diagnose:
     runs-on: ubuntu-latest
