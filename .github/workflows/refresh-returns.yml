@@ -66,17 +66,11 @@ jobs:
           fi
       - name: Revalidate snapshot after integrating concurrent edits
         run: node tests/maya-performance-data.test.cjs
-      # Explicit deployment also works for commits made with GITHUB_TOKEN.
-      - name: Prepare published snapshot
-        run: |
-          mkdir -p "$RUNNER_TEMP/maya-site"
-          git archive HEAD | tar -x -C "$RUNNER_TEMP/maya-site"
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ runner.temp }}/maya-site
       - name: Publish verified site
         id: deployment
-        uses: actions/deploy-pages@v4
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-maya-pages.cjs
       - name: Verify published data and cache versions
         env:
           SITE_URL: ${{ steps.deployment.outputs.page_url }}

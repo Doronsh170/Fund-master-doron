@@ -1,0 +1,42 @@
+name: Publish verified site
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'refresh-request.txt'
+      - 'MAYA-REFRESH.md'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/**'
+concurrency:
+  group: official-maya-fund-refresh
+  cancel-in-progress: false
+permissions:
+  contents: read
+  pages: write
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate exact official source values
+        run: node tests/maya-performance-data.test.cjs
+      - name: Test Pages queue guards
+        run: node tests/publish-maya-pages.test.cjs
+      - name: Publish using the existing Pages build queue
+        id: deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-maya-pages.cjs
+      - name: Verify published data and cache versions
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: node scripts/verify-published-maya.cjs
