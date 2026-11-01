@@ -22,11 +22,22 @@ jobs:
         run: node scripts/refresh-maya-performance.cjs
       - name: Validate returned data
         run: node tests/maya-performance-data.test.cjs
+      - name: Version performance scripts to prevent stale mobile caches
+        run: |
+          python - <<'PY'
+          import pathlib,re
+          p=pathlib.Path("index.html")
+          s=p.read_text(encoding="utf-8")
+          stamp=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y%m%d%H%M%S")
+          s,n=re.subn(r'src="(maya-performance/part-\\d{2}\\.js|maya-performance-data\\.js)(?:\\?v=[^"]*)?"',lambda m:'src="'+m.group(1)+'?v='+stamp+'"',s)
+          if n!=17:raise RuntimeError(f"Expected 17 performance script references, found {n}")
+          p.write_text(s,encoding="utf-8")
+          PY
       - name: Commit verified official figures
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add maya-performance/ maya-performance-data.js
+          git add maya-performance/ maya-performance-data.js index.html
           if ! git diff --cached --quiet; then
             git commit -m "Refresh exact official MAYA reported returns"
             git push
