@@ -43,7 +43,7 @@ function show(button){
   popup.append(element('p',message,'performance-unavailable'));
   if(record?.fetchedAt)popup.append(element('div','בדיקה אחרונה: '+displayDate(record.fetchedAt),'performance-date'));
  }
- const link=element('a','פתיחת הקרן במאיה ↗');link.href=record?.source||'https://maya.tase.co.il/he/funds/mutual-funds/'+encodeURIComponent(number);link.target='_blank';link.rel='noopener noreferrer';popup.append(link);
+ const link=element('a','פתיחת הקרן במאיה ↗');link.href=record?.source||'https://maya.tase.co.il/he/funds/mutual-funds/'+encodeURIComponent(number);link.removeAttribute('target');link.removeAttribute('rel');popup.append(link);
  popup.hidden=false;button.setAttribute('aria-expanded','true');position();
 }
 function laterHide(){if(!pinned)closeTimer=setTimeout(hide,180);}
