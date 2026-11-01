@@ -1,3 +1,3 @@
 Official MAYA yields refresh requested
-2026-11-01: Verify the unified automatic Monday-Friday 21:00 Asia/Jerusalem workflow end to end.
+2026-11-01: Verify strict exact-source equality; no failed request or previous-value fallback is permitted.
 Use raw MAYA yields only, including classification averages. Do not calculate returns from NAV.

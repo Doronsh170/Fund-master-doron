@@ -34,7 +34,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Test exact source verification guards
+        run: node tests/validate-maya-source.test.cjs
       - name: Fetch exact official MAYA yields
+        # Reject rounding, swapped periods, stale fallbacks and source mismatches.
         run: node scripts/refresh-maya-performance.cjs
       - name: Validate returned data
         run: node tests/maya-performance-data.test.cjs
