@@ -1,8 +1,9 @@
 name: Refresh official MAYA fund returns
 on:
   schedule:
-    - cron: '0 21 * * 1-5'
-      timezone: Asia/Jerusalem
+    # 21:00 Israel: 18:00 UTC (summer) or 19:00 UTC (winter)
+    - cron: '0 18 * * *'
+    - cron: '0 19 * * *'
   workflow_dispatch:
   workflow_call:
   push:
@@ -17,8 +18,36 @@ permissions:
   pages: write
   id-token: write
 jobs:
+  schedule_guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Match scheduled UTC slot to 21:00 in Israel
+        id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          python - <<'PY'
+          import datetime as dt, os
+          from zoneinfo import ZoneInfo
+          event = os.environ["EVENT_NAME"]
+          if event != "schedule":
+              allowed = True
+          else:
+              utc_hour = int(os.environ["SCHEDULE"].split()[1])
+              today_utc = dt.datetime.now(dt.timezone.utc).date()
+              slot = dt.datetime.combine(today_utc, dt.time(utc_hour), tzinfo=dt.timezone.utc)
+              local = slot.astimezone(ZoneInfo("Asia/Jerusalem"))
+              allowed = local.hour == 21
+              print("Scheduled UTC slot:", slot.isoformat(), "Israel:", local.isoformat(), "run:", allowed)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write("should_run=" + ("true" if allowed else "false") + "\n")
+          PY
   refresh:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: schedule_guard
+    if: needs.schedule_guard.outputs.should_run == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
