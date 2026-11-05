@@ -1,3 +1,2 @@
 Official MAYA yields refresh requested
-2026-11-03: Catch-up refresh after corrected 21:00 Asia/Jerusalem scheduling.
-Verify exact MAYA source yields and classification. No derived NAV returns or stale values.
+2026-11-05: Catch-up refresh for evening 21:00 Israel missed schedule. Validate direct source yields, deploy and verify site.
