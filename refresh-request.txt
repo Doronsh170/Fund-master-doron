@@ -1,2 +1,2 @@
 Official MAYA yields refresh requested
-2026-11-05: Catch-up refresh for evening 21:00 Israel missed schedule. Validate direct source yields, deploy and verify site.
+2026-11-06: User-requested morning refresh. Fetch exact official MAYA yields, validate and verify published site.
