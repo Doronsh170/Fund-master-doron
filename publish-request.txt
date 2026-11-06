@@ -1,1 +1,1 @@
-2026-11-01: Verify a single serialized branch-based Pages publishing queue after strict source refresh.
+2026-11-06: Validate published site after removing fund ratings and updating publishing tests.
