@@ -29,7 +29,7 @@ async function collect(f){
    ]:[];
    // Empty hedge records contain all-null fund returns and default zero averages.
    const meaningful=rawRows.some(r=>r.fund!==null||r.classification!==null&&r.classification!==0);
-   return {number:f.number,status:meaningful?'available':'not-provided',asOf:y?.dueDate||data.ratesAsOf||null,source:'https://maya.tase.co.il/he/funds/'+(kind==='hedge'?'hedge-funds/':'mutual-funds/')+f.number,sourceApi:endpoint,name:data.name,classification:data.classification||null,deleted:data.deleted===true,rows:meaningful?rawRows:[],sourceSnapshot:{fundId:data.fundId,yields:y??null,ratesAsOf:data.ratesAsOf??null},fetchedAt:new Date().toISOString()};
+   return {number:f.number,status:meaningful?'available':'not-provided',asOf:y?.dueDate||data.ratesAsOf||null,source:'https://maya.tase.co.il/he/funds/'+(kind==='hedge'?'hedge-funds/':'mutual-funds/')+f.number,sourceApi:endpoint,name:data.name,classification:data.classification||null,deleted:data.deleted===true,rows:meaningful?rawRows:[],metadata:{name:data.name??null,longName:data.longName??null,managerName:data.managerName??null,fundType:data.fundType??null,managementFee:finite(data.managementFee),trusteeFee:finite(data.trusteeFee),exposureProfile:data.exposureProfile??null,classification:data.classification??null,features:data.features??null,deleted:data.deleted===true},sourceSnapshot:{fundId:data.fundId,yields:y??null,ratesAsOf:data.ratesAsOf??null},fetchedAt:new Date().toISOString()};
   }catch(error){if(attempt===2)return {number:f.number,status:'request-failed',error:error.message,sourceApi:endpoint,fetchedAt:new Date().toISOString()};await wait(1000*(attempt+1));}
  }
  return {number:f.number,status:'request-failed',sourceApi:endpoint,fetchedAt:new Date().toISOString()};
