@@ -41,6 +41,11 @@ function writePerformanceData(payload,base){
   html=html.replace('<script src="search.js"></script>','<script src="search.js"></script><script src="maya-catalog-data.js?v=initial"></script>');
  }
  if(!html.includes('src="maya-catalog-data.js'))throw Error('Failed to activate MAYA catalog script');
+
+ html=html.replace('2,549 קרנות',catalog.length.toLocaleString('en-US')+' קרנות');
+ html=html.replace('מאגר של 2,549 קרנות נאמנות וקרנות סל','מאגר של '+catalog.length.toLocaleString('en-US')+' קרנות ממאיה');
+ html=html.replace('דמי ניהול לפי פרסומים, אינם נתונים חיים','דמי ניהול כפי שפורסמו במאיה בעת עדכון המאגר');
+ html=html.replace('מקור הנתונים: אתר הבורסה לניירות ערך','מקור הנתונים: מאיה, אתר הבורסה לניירות ערך');
  fs.writeFileSync(htmlPath,html,'utf8');
 
 
