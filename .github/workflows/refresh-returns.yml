@@ -77,8 +77,8 @@ jobs:
           p=pathlib.Path("index.html")
           s=p.read_text(encoding="utf-8")
           stamp=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y%m%d%H%M%S")
-          s,n=re.subn(r'src="(maya-performance/part-\d{2}\.js|maya-performance-data\.js)(?:\?v=[^"]*)?"',lambda m:'src="'+m.group(1)+'?v='+stamp+'"',s)
-          if n!=17:raise RuntimeError(f"Expected 17 performance script references, found {n}")
+          s,n=re.subn(r'src="(maya-performance/part-\d{2}\.js|maya-performance-data\.js|maya-catalog-data\.js)(?:\?v=[^"]*)?"',lambda m:'src="'+m.group(1)+'?v='+stamp+'"',s)
+          if n!=18:raise RuntimeError(f"Expected 18 MAYA script references, found {n}")
           p.write_text(s,encoding="utf-8")
           PY
       - name: Commit verified official figures
