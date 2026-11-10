@@ -1,8 +1,9 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const base=path.resolve(__dirname,'..');
-const {build}=require('../fund-catalog.js');
-const funds=build(require('../fund-sources.js'),require('../exchange-data.js')).rows;
+const previous=require('../maya-performance-data.js').funds;
+// Existing identifiers and endpoint types come from previously fetched MAYA records only.
+const funds=Object.values(previous).map(r=>({number:r.number,kind:(r.sourceApi||'').match(/\/(mutual|etf|hedge)\//)?.[1]||'mutual'}));
 const checkpoint=path.resolve(base,'../maya-performance-checkpoint.json');
 const resume=process.argv.includes('--resume');
 const results=resume&&fs.existsSync(checkpoint)?JSON.parse(fs.readFileSync(checkpoint,'utf8')):{};
@@ -11,7 +12,7 @@ let cursor=0,done=Object.keys(results).length;
 const pending=funds.filter(f=>!results[f.number]);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const finite=x=>typeof x==='number'&&Number.isFinite(x)?x:null;
-function kindFor(f){if(/גידור/.test(f.type)||/גידור/.test(f.name))return 'hedge';if(['קרן סל','קרן הייטק'].includes(f.type))return 'etf';return 'mutual';}
+function kindFor(f){if(f.kind)return f.kind;if/גידור/.test(f.type)||/גידור/.test(f.name))return 'hedge';if(['קרן סל','קרן הייטק'].includes(f.type))return 'etf';return 'mutual';}
 async function collect(f){
  const kind=kindFor(f),endpoint='https://maya.tase.co.il/api/v1/funds/'+kind+'/'+f.number;
  for(let attempt=0;attempt<3;attempt++){
