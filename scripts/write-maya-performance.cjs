@@ -31,6 +31,18 @@ function writePerformanceData(payload,base){
  catalog.sort((a,b)=>a.number.localeCompare(b.number));
  const catalogCode='(function(root){const data='+JSON.stringify({generatedAt:payload.report.generatedAt,source:'MAYA',funds:catalog})+';if(typeof module!=="undefined"&&module.exports)module.exports=data;else root.FUND_MAYA_CATALOG=data.funds;})(typeof window==="undefined"?globalThis:window);';
  fs.writeFileSync(path.join(base,'maya-catalog-data.js'),catalogCode);
+ // Activate MAYA-only catalogue atomically with its newly generated verified file.
+ const htmlPath=path.join(base,'index.html');
+ let html=fs.readFileSync(htmlPath,'utf8');
+ html=html.replace(/<script src="(?:fund-sources|exchange-data|fund-catalog)\.js"><\/script>/g,'');
+ html=html.replace(/const funds=window\.FUND_DATA;/g,'const funds=window.FUND_MAYA_CATALOG;');
+ if(!html.includes('const funds=window.FUND_MAYA_CATALOG;'))throw Error('Expected catalog bootstrap not found');
+ if(!html.includes('src="maya-catalog-data.js')){
+  html=html.replace('<script src="search.js"></script>','<script src="search.js"></script><script src="maya-catalog-data.js?v=initial"></script>');
+ }
+ if(!html.includes('src="maya-catalog-data.js'))throw Error('Failed to activate MAYA catalog script');
+ fs.writeFileSync(htmlPath,html,'utf8');
+
 
 }
 module.exports={writePerformanceData,PARTS};
