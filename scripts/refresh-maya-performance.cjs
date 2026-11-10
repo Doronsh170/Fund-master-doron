@@ -12,7 +12,7 @@ let cursor=0,done=Object.keys(results).length;
 const pending=funds.filter(f=>!results[f.number]);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const finite=x=>typeof x==='number'&&Number.isFinite(x)?x:null;
-function kindFor(f){if(f.kind)return f.kind;if/גידור/.test(f.type)||/גידור/.test(f.name))return 'hedge';if(['קרן סל','קרן הייטק'].includes(f.type))return 'etf';return 'mutual';}
+function kindFor(f){if(f.kind)return f.kind;if(/גידור/.test(f.type)||/גידור/.test(f.name))return 'hedge';if(['קרן סל','קרן הייטק'].includes(f.type))return 'etf';return 'mutual';}
 async function collect(f){
  const kind=kindFor(f),endpoint='https://maya.tase.co.il/api/v1/funds/'+kind+'/'+f.number;
  for(let attempt=0;attempt<3;attempt++){
