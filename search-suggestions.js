@@ -2,7 +2,7 @@
 'use strict';
 const input=document.getElementById('q'),list=document.getElementById('searchSuggestions'),search=document.getElementById('searchNow');
 if(!input||!list||!search)return;
-const funds=window.FUND_DATA||[],norm=FundSearch.norm;
+const funds=window.FUND_MAYA_CATALOG||[],norm=FundSearch.norm;
 // Merge equivalent spellings (including Hebrew/ASCII quotation marks) before ranking.
 const termMap=new Map();
 for(const label of ['דולר','כספית','לפדיון','90/10','מח״מ 10','מח״מ ארוך','S&P 500','Nasdaq 100',...funds.map(f=>f.manager),...funds.map(f=>f.category)].filter(Boolean)){
