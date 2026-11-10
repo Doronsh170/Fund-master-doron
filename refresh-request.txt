@@ -1,2 +1,2 @@
-Official MAYA yields and metadata refresh requested
-2026-11-10: Rebuild displayed fund catalog exclusively from official MAYA API. Verify name, manager, classification, fees, yields, and publication. No legacy sources.
+Official MAYA-only fund catalog refresh requested
+2026-11-10: Retry after correcting preflight syntax. All displayed fund attributes and official yields must come exclusively from Maya.
