@@ -70,6 +70,8 @@ jobs:
         run: node scripts/refresh-maya-performance.cjs
       - name: Validate returned data
         run: node tests/maya-performance-data.test.cjs
+      - name: Verify MAYA-only search catalog and fees
+        run: node tests/maya-catalog-data.test.cjs
       - name: Version performance scripts to prevent stale mobile caches
         run: |
           python - <<'PY'
@@ -95,6 +97,8 @@ jobs:
           fi
       - name: Revalidate snapshot after integrating concurrent edits
         run: node tests/maya-performance-data.test.cjs
+      - name: Revalidate official MAYA fund catalog
+        run: node tests/maya-catalog-data.test.cjs
       - name: Publish verified site
         id: deployment
         env:
