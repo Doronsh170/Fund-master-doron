@@ -1,2 +1,2 @@
 Official MAYA yields refresh requested
-2026-11-06: User-requested morning refresh. Fetch exact official MAYA yields, validate and verify published site.
+2026-11-10 11:46 Asia/Jerusalem: User-requested newest available official MAYA yields. Verify source dates, exact yields, and published site.
