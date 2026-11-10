@@ -7,8 +7,8 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
 async function verifyPublished(url, {fetcher = fetch, attempts = 18, delay = 10000} = {}) {
   const index = fs.readFileSync(path.join(base, 'index.html'), 'utf8');
-  const scripts = [...index.matchAll(/src="((?:maya-performance\/part-\d{2}\.js|maya-performance-data\.js)\?v=[^"]+)"/g)].map(m => m[1]);
-  if (scripts.length !== 17) throw Error('Expected 17 versioned performance scripts');
+  const scripts = [...index.matchAll(/src="((?:maya-performance\/part-\d{2}\.js|maya-performance-data\.js|maya-catalog-data\.js)\?v=[^"]+)"/g)].map(m => m[1]);
+  if (scripts.length !== 18) throw Error('Expected 18 versioned MAYA scripts');
   const files = ['index.html', ...scripts];
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -21,7 +21,7 @@ async function verifyPublished(url, {fetcher = fetch, attempts = 18, delay = 100
         const expected = fs.readFileSync(path.join(base, file.split('?')[0]));
         if (hash(actual) !== hash(expected)) throw Error(`${file}: published bytes differ`);
       }));
-      return 'Published index and all 17 performance scripts match the validated snapshot.';
+      return 'Published index and all 18 MAYA scripts match the validated snapshot.';
     } catch (error) {
       console.log(`Publication check ${attempt}/${attempts}: ${error.message}`);
       if (attempt === attempts) throw error;
