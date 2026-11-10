@@ -50,6 +50,7 @@
     const ratings=ratingMatch?[...new Set(ratingMatch[1].match(/[1-5]/g).map(Number))]:[];
     let remaining = ratingMatch?text.replace(ratingMatch[0],' '):text;
     remaining=remaining.replace(/ללא\s+דמי\s+ניהול/g,'דמי ניהול בדיוק 0');
+    remaining=remaining.replace(/(?:^|\s)(?:ב\s*)?(\d+(?:\.\d+)?)\s*%?\s*(?:דמי\s*ניהול|דמנ)(?=\s|$)/g,(_,value)=>' דמי ניהול בדיוק '+value);
     remaining=remaining.replace(/(עד|לכל היותר|מתחת ל|פחות מ|מעל|לפחות|בדיוק)\s+(דמי\s*ניהול|דמנ)/g,'$2 $1');
     const mixed=/(?:^|\s)מעורבת(?=\s|$)/.test(remaining);remaining=remaining.replace(/(?:^|\s)מעורבת(?=\s|$)/g,' ');
     const feeMatch=remaining.match(/(?:דמי\s*ניהול|דמנ)\s*(?:של\s*)?(עד|לכל היותר|לא יותר מ|מתחת ל|פחות מ|מעל|לפחות|בדיוק)?\s*[-:=]?\s*(\d+(?:\.\d+)?)\s*(?:%|אחוז(?:ים)?)?/);
