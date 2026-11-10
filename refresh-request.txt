@@ -1,2 +1,2 @@
-Official MAYA yields refresh requested
-2026-11-10 11:46 Asia/Jerusalem: User-requested newest available official MAYA yields. Verify source dates, exact yields, and published site.
+Official MAYA yields and metadata refresh requested
+2026-11-10: Rebuild displayed fund catalog exclusively from official MAYA API. Verify name, manager, classification, fees, yields, and publication. No legacy sources.
