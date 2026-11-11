@@ -22,6 +22,7 @@ details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-hei
 <main>
 <section class="panel"><div class="filters">
 <label>סיווג ראשי<select id="category"><option value="">כל הסיווגים</option></select></label>
+<label>סיווג משני<select id="subcategory"><option value="">כל הסיווגים המשניים</option></select></label>
 <label>חיפוש קרן או מספר<input id="search" type="search" placeholder="שם, מנהל או מספר קרן"></label>
 <label>מיון<select id="sort"><option value="score">ציון משוקלל, מהגבוה לנמוך</option><option value="return">תשואת 12 חודשים, מהגבוה לנמוך</option><option value="fee">דמי ניהול, מהנמוך לגבוה</option><option value="name">שם הקרן</option></select></label>
 </div><div class="stats"><div class="stat" id="total">טוען נתונים ממאיה…</div><div class="stat" id="eligible"></div><div class="stat" id="date"></div></div></section>
@@ -76,14 +77,22 @@ function calculate(catalog,performance){
 }
 let rows=[],limit=40;
 function render(){
- const q=$("search").value.toLocaleLowerCase("he").trim(),cat=$("category").value,sort=$("sort").value;
- let items=rows.filter(f=>(!cat||f.category===cat)&&(!q||[f.name,f.number,f.manager].some(x=>String(x||"").toLocaleLowerCase("he").includes(q))));
+ const q=$("search").value.toLocaleLowerCase("he").trim(),cat=$("category").value,subcat=$("subcategory").value,sort=$("sort").value;
+ let items=rows.filter(f=>(!cat||f.category===cat)&&(!subcat||(f.searchTerms?.[1]||"")===subcat)&&(!q||[f.name,f.number,f.manager].some(x=>String(x||"").toLocaleLowerCase("he").includes(q))));
  items.sort((a,b)=>sort==="return"?(b.return12??-Infinity)-(a.return12??-Infinity):sort==="fee"?(a.fee??Infinity)-(b.fee??Infinity):sort==="name"?a.name.localeCompare(b.name,"he"):(b.score??-Infinity)-(a.score??-Infinity)||a.name.localeCompare(b.name,"he"));
  $("results").innerHTML=items.slice(0,limit).map(f=>`<tr><td><span class="rank">${f.position??"—"}</span><span class="subtle">${f.peers?f.peers+" בקבוצה":"ללא דירוג"}</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">לא נמצאו קרנות התואמות לחיפוש</td></tr>';
  $("shown").textContent="מוצגות "+Math.min(items.length,limit)+" מתוך "+items.length+" קרנות";
  $("more").hidden=items.length<=limit;
 }
-["search","category","sort"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",()=>{limit=40;render()}));
+function updateSubcategories(){
+ const category=$("category").value,select=$("subcategory"),previous=select.value;
+ select.replaceChildren(new Option("כל הסיווגים המשניים",""));
+ const names=[...new Set(rows.filter(f=>!category||f.category===category).map(f=>f.searchTerms?.[1]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"he"));
+ for(const name of names)select.add(new Option(name,name));
+ select.value=names.includes(previous)?previous:"";
+}
+$("category").addEventListener("change",()=>{updateSubcategories();limit=40;render()});
+["search","subcategory","sort"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",()=>{limit=40;render()}));
 $("more").onclick=()=>{limit+=40;render()};
 (async()=>{
  try{
@@ -96,6 +105,7 @@ $("more").onclick=()=>{limit+=40;render()};
   if(catalog.length!==perf.report.listCount)throw Error("חוסר התאמה בין רשימת הקרנות ובין נתוני התשואות");
   rows=calculate(catalog,perf.funds);
   for(const c of [...new Set(rows.map(x=>x.category))].sort((a,b)=>a.localeCompare(b,"he"))){const opt=document.createElement("option");opt.value=c;opt.textContent=c;$("category").append(opt);}
+  updateSubcategories();
   $("total").textContent=rows.length.toLocaleString("he-IL")+" קרנות ממאיה";
   $("eligible").textContent=rows.filter(x=>x.score!==null).length.toLocaleString("he-IL")+" קרנות ניתנות לדירוג";
   $("date").textContent="עדכון מקור: "+new Date(perf.report.generatedAt).toLocaleString("he-IL",{dateStyle:"short",timeStyle:"short",timeZone:"Asia/Jerusalem"});
