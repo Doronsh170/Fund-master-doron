@@ -1,2 +1,2 @@
-Official full-universe MAYA sync requested 2026-11-11
-Discover every active listed fund from https://maya.tase.co.il/api/v1/funds/all with pagination, then fetch official detail and verify matching published site. Do not use fixed IDs or external fund data.
+Official full-universe MAYA sync requested 2026-11-12 00:29 Asia/Jerusalem
+Catch up on November 11 market close. Fetch full official MAYA list, official fund fields and yields, validate all source snapshots, publish and verify.
