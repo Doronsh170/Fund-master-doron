@@ -91,13 +91,28 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The full MAYA fetch can take several minutes. Integrate the newest
+          # main branch BEFORE committing, avoiding rebase conflicts in index.html
+          # when the UI changes during the fetch.
+          git fetch origin "${{ github.event.repository.default_branch }}"
+          git reset --mixed "origin/${{ github.event.repository.default_branch }}"
+          git restore --source="origin/${{ github.event.repository.default_branch }}" --worktree -- index.html
+          python - <<'PY'
+          import datetime,pathlib,re
+          p=pathlib.Path("index.html")
+          s=p.read_text(encoding="utf-8")
+          stamp=datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
+          s,n=re.subn(r'src="(maya-performance/part-\d{2}\.js|maya-performance-data\.js|maya-catalog-data\.js)(?:\?v=[^"]*)?"',lambda m:'src="'+m.group(1)+'?v='+stamp+'"',s)
+          if n!=18:raise RuntimeError(f"Expected 18 MAYA script references, found {n}")
+          p.write_text(s,encoding="utf-8")
+          PY
           git add maya-performance/ maya-performance-data.js maya-catalog-data.js index.html
+          node tests/maya-performance-data.test.cjs
+          node tests/maya-catalog-data.test.cjs
           if ! git diff --cached --quiet; then
             git commit -m "Refresh exact official MAYA reported returns"
-            # Preserve unrelated edits; conflicting edits fail safely.
-            git pull --rebase origin "${{ github.event.repository.default_branch }}"
-            node tests/maya-performance-data.test.cjs
-            git push
+            # No forced push: concurrent edits cannot be overwritten.
+            git push origin "HEAD:${{ github.event.repository.default_branch }}"
           fi
       - name: Revalidate snapshot after integrating concurrent edits
         run: node tests/maya-performance-data.test.cjs
