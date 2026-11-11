@@ -1,6 +1,7 @@
 'use strict';
 (async()=>{
   const base='https://maya.tase.co.il/api/v1/funds';
+  // Repeatable read-only investigation of the official full-list endpoint.
   const headers={'Content-Type':'application/json','Accept':'application/json','Accept-Language':'he-IL','Origin':'https://maya.tase.co.il','Referer':'https://maya.tase.co.il/'};
   async function probe(path,method='POST',body={pageSize:20,pageNumber:1}){
     try{
