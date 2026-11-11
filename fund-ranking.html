@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light">
+<title>דירוג קרנות לפי ביצועים ודמי ניהול | מאיה</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#172945;background:#f4f6fa}
+*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(115deg,#11294b,#205480);padding:27px 18px;color:white}
+header>div,main{max-width:1120px;margin:auto}h1{font-size:26px;margin:10px 0 6px}header p{opacity:.88;margin:0;font-size:14px;line-height:1.6}
+a{color:#1767ad}header a{color:white}
+main{padding:17px 13px 40px}.panel{background:white;border:1px solid #e1e6ef;border-radius:15px;padding:16px;margin-bottom:14px;box-shadow:0 4px 15px #0e2f5610}
+.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+label{font-size:13px;font-weight:650;display:flex;flex-direction:column;gap:6px}input,select{background:#fff;border:1px solid #cbd4e1;border-radius:9px;padding:11px;min-height:44px;font:inherit;min-width:0;width:100%}
+button{border:0;border-radius:9px;padding:10px 15px;background:#205b94;color:#fff;font-weight:700;cursor:pointer}
+.muted{color:#62748a;font-size:13px}.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.stat{background:#eff5fb;border-radius:10px;padding:10px 14px;font-size:13px}
+.table-scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:820px;font-size:13px;text-align:right}th,td{padding:11px 9px;border-bottom:1px solid #e6ebf2;vertical-align:middle}th{background:#f0f4f9;white-space:nowrap;position:sticky;top:0}td.num{text-align:left;direction:ltr;font-variant-numeric:tabular-nums}th.num{text-align:left}
+.rank{display:inline-block;min-width:28px;text-align:center;border-radius:7px;background:#dfeaf7;padding:5px;font-weight:750}td.name{min-width:200px}
+.subtle{display:block;color:#64748b;font-size:12px;padding-top:3px}.empty{text-align:center;padding:30px;color:#5f7086}
+.bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px}
+details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-height:1.65}
+@media(max-width:690px){.filters{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}.bottom{flex-wrap:wrap}}
+</style></head>
+<body><header><div><a href="./">חזרה למאתר הקרנות</a><h1>דירוג קרנות לפי ביצועים ודמי ניהול</h1><p>השוואה בתוך קבוצות סיווג על בסיס נתוני מאיה בלבד. מדד יחסי ושקוף, לא דירוג רשמי של הבורסה.</p></div></header>
+<main>
+<section class="panel"><div class="filters">
+<label>סיווג ראשי<select id="category"><option value="">כל הסיווגים</option></select></label>
+<label>חיפוש קרן או מספר<input id="search" type="search" placeholder="שם, מנהל או מספר קרן"></label>
+<label>מיון<select id="sort"><option value="score">ציון משוקלל, מהגבוה לנמוך</option><option value="return">תשואת 12 חודשים, מהגבוה לנמוך</option><option value="fee">דמי ניהול, מהנמוך לגבוה</option><option value="name">שם הקרן</option></select></label>
+</div><div class="stats"><div class="stat" id="total">טוען נתונים ממאיה…</div><div class="stat" id="eligible"></div><div class="stat" id="date"></div></div></section>
+<section class="panel"><details><summary>כיצד מחושב הדירוג?</summary><p>הציון משלב 70% דירוג יחסי של תשואת 12 חודשים ו־30% דירוג יחסי של דמי ניהול שנתיים. לכל מדד מחושב אחוזון ביחס לקרנות באותה קבוצת השוואה. תשואה גבוהה יותר מעלה את הציון; דמי ניהול נמוכים יותר מעלים אותו. התשואה המדווחת ממאיה כבר משקפת את דמי הניהול, ולכן המשקל הנוסף של העלות הוא העדפה מובנית של מודל הדירוג, לא ניכוי נוסף מהתשואה.</p><p>קבוצת ההשוואה נקבעת לפי הסיווג הראשי והמשני של מאיה, ובמידת האפשר גם לפי הסיווג המשני המפורט, ללא ערבוב קרנות סל, מחקות, פתוחות וגידור. נדרשות לפחות חמש קרנות בעלות תשואה תקפה ל־12 חודשים ודמי ניהול מפורסמים באותה קבוצה. לא קיימת הערכה עבור קרנות שלא עומדות בתנאים אלה. אין התאמה לסיכון, לתנודתיות, למדד ייחוס או לחשיפת מטבע ולכן אין לראות בציון הערכה כוללת לאיכות הקרן או המלצת השקעה.</p></details></section>
+<section class="panel">
+<div class="table-scroll"><table><thead><tr><th>דירוג בקבוצה</th><th>קרן</th><th>קבוצת השוואה</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th><th class="num">ציון / 100</th></tr></thead><tbody id="results"><tr><td colspan="6" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
+<div class="bottom"><span class="muted" id="shown"></span><button id="more" hidden>הצג עוד</button></div>
+</section><p class="muted">מקור: מאיה, אתר הבורסה לניירות ערך. כל התשואות ועמלות הניהול מוצגות כפי שפורסמו במקור, במועד הדיווח שלהן. הביצועים ההיסטוריים אינם מבטיחים תשואה עתידית.</p>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>Number.isFinite(n)?n.toFixed(2)+"%":"לא פורסם";
+const scoreFmt=n=>Number.isFinite(n)?n.toFixed(1):"—";
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+function loadScript(src){return new Promise((resolve,reject)=>{const t=document.createElement("script");t.src=src;t.onload=resolve;t.onerror=()=>reject(Error("טעינת "+src+" נכשלה"));document.head.append(t);});}
+function percentile(value,values,asc){
+ const below=values.filter(v=>asc?v>value:v<value).length;
+ const equal=values.filter(v=>v===value).length;
+ return values.length<=1?50:100*(below+(equal-1)/2)/(values.length-1);
+}
+function groupId(f,level){
+ const parts=[f.category,f.type,f.searchTerms?.[1]||""];
+ if(level===2)parts.push(f.searchTerms?.[2]||"");
+ return parts.join("||");
+}
+function calculate(catalog,performance){
+ const data=catalog.map(f=>{
+  const rec=performance[f.number];
+  const twelve=rec?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
+  return {...f,return12:Number.isFinite(twelve)?twelve:null,valid:Number.isFinite(twelve)&&Number.isFinite(f.fee)&&rec?.status==="available"};
+ });
+ const valid=data.filter(f=>f.valid);
+ const buckets=new Map();
+ for(const level of [1,2])for(const f of valid){const key=level+"|"+groupId(f,level);if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(f);}
+ for(const f of data){
+  f.score=null;f.position=null;f.peers=0;f.groupText="לא ניתן לדרג";
+  if(!f.valid)continue;
+  let peers=buckets.get("2|"+groupId(f,2));
+  if(!f.searchTerms?.[2]||!peers||peers.length<5)peers=buckets.get("1|"+groupId(f,1));
+  if(!peers||peers.length<5)continue;
+  const returns=peers.map(x=>x.return12),fees=peers.map(x=>x.fee);
+  f.score=clamp(.7*percentile(f.return12,returns,false)+.3*percentile(f.fee,fees,true),0,100);
+  f.peers=peers.length;
+  f.groupText=[f.category,f.searchTerms?.[1],peers===buckets.get("2|"+groupId(f,2))?f.searchTerms?.[2]:null,f.type].filter(Boolean).join(" / ");
+ }
+ const groups=new Map();
+ for(const f of data.filter(x=>x.score!==null)){const key=f.groupText;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(f);}
+ for(const group of groups.values()){group.sort((a,b)=>b.score-a.score||b.return12-a.return12||a.fee-b.fee);group.forEach((f,i)=>{f.position=i+1;});}
+ return data;
+}
+let rows=[],limit=40;
+function render(){
+ const q=$("search").value.toLocaleLowerCase("he").trim(),cat=$("category").value,sort=$("sort").value;
+ let items=rows.filter(f=>(!cat||f.category===cat)&&(!q||[f.name,f.number,f.manager].some(x=>String(x||"").toLocaleLowerCase("he").includes(q))));
+ items.sort((a,b)=>sort==="return"?(b.return12??-Infinity)-(a.return12??-Infinity):sort==="fee"?(a.fee??Infinity)-(b.fee??Infinity):sort==="name"?a.name.localeCompare(b.name,"he"):(b.score??-Infinity)-(a.score??-Infinity)||a.name.localeCompare(b.name,"he"));
+ $("results").innerHTML=items.slice(0,limit).map(f=>`<tr><td><span class="rank">${f.position??"—"}</span><span class="subtle">${f.peers?f.peers+" בקבוצה":"ללא דירוג"}</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">לא נמצאו קרנות התואמות לחיפוש</td></tr>';
+ $("shown").textContent="מוצגות "+Math.min(items.length,limit)+" מתוך "+items.length+" קרנות";
+ $("more").hidden=items.length<=limit;
+}
+["search","category","sort"].forEach(id=>$(id).addEventListener(id==="search"?"input":"change",()=>{limit=40;render()}));
+$("more").onclick=()=>{limit+=40;render()};
+(async()=>{
+ try{
+  const version=Date.now();
+  await loadScript("maya-catalog-data.js?v="+version);
+  for(let i=0;i<16;i++)await loadScript("maya-performance/part-"+String(i).padStart(2,"0")+".js?v="+version);
+  await loadScript("maya-performance-data.js?v="+version);
+  const catalog=window.FUND_MAYA_CATALOG,perf=window.FUND_PERFORMANCE_DATA;
+  if(!Array.isArray(catalog)||!perf?.funds||!perf?.report?.sourceVerified)throw Error("נתוני מאיה לא אומתו");
+  if(catalog.length!==perf.report.listCount)throw Error("חוסר התאמה בין רשימת הקרנות ובין נתוני התשואות");
+  rows=calculate(catalog,perf.funds);
+  for(const c of [...new Set(rows.map(x=>x.category))].sort((a,b)=>a.localeCompare(b,"he"))){const opt=document.createElement("option");opt.value=c;opt.textContent=c;$("category").append(opt);}
+  $("total").textContent=rows.length.toLocaleString("he-IL")+" קרנות ממאיה";
+  $("eligible").textContent=rows.filter(x=>x.score!==null).length.toLocaleString("he-IL")+" קרנות ניתנות לדירוג";
+  $("date").textContent="עדכון מקור: "+new Date(perf.report.generatedAt).toLocaleString("he-IL",{dateStyle:"short",timeStyle:"short",timeZone:"Asia/Jerusalem"});
+  render();
+ }catch(e){$("results").innerHTML='<tr><td colspan="6" class="empty">לא ניתן לטעון נתונים מאומתים: '+esc(e.message)+'</td></tr>';$("total").textContent="טעינת הנתונים נכשלה";}
+})();
+</script></body></html>
