@@ -1,2 +1,2 @@
-Official MAYA-only fund catalog refresh requested
-2026-11-10: Retry after correcting preflight syntax. All displayed fund attributes and official yields must come exclusively from Maya.
+Official full-universe MAYA sync requested 2026-11-11
+Discover every active listed fund from https://maya.tase.co.il/api/v1/funds/all with pagination, then fetch official detail and verify matching published site. Do not use fixed IDs or external fund data.
