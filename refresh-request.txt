@@ -1,2 +1,1 @@
-Official full-universe MAYA sync requested 2026-11-12 00:29 Asia/Jerusalem
-Catch up on November 11 market close. Fetch full official MAYA list, official fund fields and yields, validate all source snapshots, publish and verify.
+Official MAYA complete fund list, metadata and yield refresh requested, 2026-11-12. Retry after fixing concurrent index.html merge conflicts; verify publication. Preserve existing fund finder and ranking UI.
