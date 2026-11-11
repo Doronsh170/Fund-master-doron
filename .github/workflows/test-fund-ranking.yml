@@ -1,0 +1,21 @@
+name: Validate MAYA fund ranking page
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fund-ranking.html'
+      - 'tests/fund-ranking.test.cjs'
+      - '.github/workflows/test-fund-ranking.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate ranking syntax and single official data source
+        run: node tests/fund-ranking.test.cjs
