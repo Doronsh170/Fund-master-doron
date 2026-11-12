@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>בונה תיקי קרנות | Doron Tools</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#17314e;background:#f4f6fa}*{box-sizing:border-box}
+body{margin:0}header{background:linear-gradient(110deg,#102c4b,#25618e);color:white;padding:27px 16px}header>div,main{max-width:1120px;margin:auto}header a{color:white}h1{margin:10px 0;font-size:27px}h2{font-size:19px;margin:0 0 14px}header p{opacity:.89;line-height:1.6;margin:0}
+main{padding:18px 13px 45px}.panel{background:#fff;border:1px solid #dfe5ee;border-radius:15px;padding:18px;margin-bottom:16px;box-shadow:0 4px 15px #102f5610}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:700}input,select{min-height:44px;border:1px solid #c5d2e1;border-radius:8px;padding:10px;font:inherit;color:#17314e;width:100%;background:white}
+fieldset{border:1px solid #d7e1ed;border-radius:10px;margin:15px 0 0;padding:12px}legend{font-weight:750;padding:0 7px}.categories{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.categories label{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;background:#f3f7fc;padding:11px;border-radius:8px}.categories input{width:18px;min-height:18px;height:18px;margin:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:9px;background:#205b94;color:white;font-size:15px;font-weight:750;padding:12px 20px;min-height:44px;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#e6eff8;color:#1b4169}
+.note{font-size:13px;color:#596e86;line-height:1.65}.warning{background:#fff7e7;border-right:4px solid #c58a26;padding:12px;margin-top:12px}.error{background:#fff0ed;border-right:4px solid #b74e42;padding:12px;margin-top:12px}.good{background:#eaf7ef;border-right:4px solid #347d55;padding:12px;margin-top:12px}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}.metric{background:#eff5fa;border-radius:9px;padding:12px}.metric small{display:block;color:#526985}.metric strong{font-size:20px}
+.table-scroll{overflow-x:auto}table{width:100%;min-width:850px;border-collapse:collapse;font-size:13px}th,td{padding:11px 9px;border-bottom:1px solid #e6ebf1;text-align:right}th{background:#edf3f8;white-space:nowrap}td.num,th.num{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}td a{color:#1765a4}td small{display:block;color:#5e6c7d;margin-top:3px}
+footer{font-size:12px;line-height:1.7;color:#576b83;margin-top:20px}
+@media(max-width:750px){.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.categories{grid-template-columns:1fr 1fr}.summary{grid-template-columns:1fr 1fr}}
+@media(max-width:450px){.form-grid{grid-template-columns:1fr 1fr}.categories{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}}
+@media print{header,.actions,.config{display:none!important}body{background:#fff}.panel{border:0;box-shadow:none}table{font-size:11px}}
+</style></head>
+<body><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
+<main>
+<section class="panel config"><h2>הגדרות התיק</h2>
+<div class="form-grid">
+<label>מספר קרנות בתיק<input id="count" type="number" min="2" max="20" step="1" value="6"></label>
+<label>רמת סיכון<select id="risk"><option value="1">1 · נמוכה מאוד</option><option value="2">2 · נמוכה</option><option value="3" selected>3 · בינונית</option><option value="4">4 · גבוהה</option><option value="5">5 · גבוהה מאוד</option></select></label>
+<label>תקרת חשיפה למניות (%)<input id="equity" type="number" min="0" max="100" value="30" step="1"></label>
+<label>תקרת חשיפה למט״ח (%)<input id="fx" type="number" min="0" max="100" value="35" step="1"></label>
+</div>
+<p id="riskExplanation" class="note"></p>
+<fieldset><legend>אפיקי השקעה נדרשים בתיק</legend>
+<p class="note">בחר את האפיקים שתרצה לכלול. הסוכן יבחר לפחות קרן אחת מכל אפיק שסומן, ושאר הקרנות יהיו מאפיקים שנבחרו. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
+<div class="categories" id="categories">
+<label><input type="checkbox" value="money">קרנות כספיות</label>
+<label><input type="checkbox" value="gov" checked>אג״ח מדינה בישראל</label>
+<label><input type="checkbox" value="corp" checked>אג״ח חברות בישראל</label>
+<label><input type="checkbox" value="localbond">אג״ח כללי בישראל</label>
+<label><input type="checkbox" value="foreignbond" checked>אג״ח בחו״ל</label>
+<label><input type="checkbox" value="israelequity">מניות בישראל</label>
+<label><input type="checkbox" value="foreignequity" checked>מניות בחו״ל</label>
+</div></fieldset>
+<div class="actions"><button id="build" disabled>טוען נתוני מאיה...</button><button id="reset" type="button" class="secondary">איפוס להגדרות ברירת מחדל</button></div>
+<p class="note">רמות הסיכון הן מסגרת סינון מחקרית ולא מדד סיכון רשמי. הסוכן אינו יודע להסיק דירוג אשראי, מח״מ, תנודתיות או מתאם בין קרנות מנתוני הסיווג בלבד.</p>
+</section>
+<section class="panel" id="output" aria-live="polite"><h2>תיק מוצע</h2><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
+<section class="panel"><h2>איך נבחרות הקרנות?</h2>
+<p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מרכיב תיק במשקלים שווים, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
+<p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
+<footer>כלי מחקר והמחשה בלבד. אין לראות בתיק ייעוץ השקעות אישי, המלצה לרכישה או תחליף לבחינת צרכים, אופק השקעה, נזילות, יכולת לשאת הפסד, מדיניות הקרנות העדכנית, עלויות ומיסוי. תשואות עבר אינן מבטיחות תשואות עתידיות. תיק העומד בתקרות הפרופיל אינו בהכרח בעל רמת סיכון נמוכה: סיכוני אשראי, ריבית, מח״מ, נזילות וריכוזיות אינם נמדדים כאן.</footer>
+</section></main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id),esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const riskLevels={
+ 1:{name:"נמוכה מאוד",eq:0,fx:10,allowed:["money","gov"]},
+ 2:{name:"נמוכה",eq:10,fx:20,allowed:["money","gov","corp","localbond","foreignbond"]},
+ 3:{name:"בינונית",eq:30,fx:35,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
+ 4:{name:"גבוהה",eq:50,fx:60,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
+ 5:{name:"גבוהה מאוד",eq:80,fx:90,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]}
+};
+const eqProfile={"0":0,"1":10,"2":30,"3":50,"4":120,"5":200};
+const fxProfile={"0":0,A:10,B:30,C:50,D:120,E:200};
+const categoryNames={money:"קרנות כספיות",gov:"אג״ח מדינה בישראל",corp:"אג״ח חברות בישראל",localbond:"אג״ח כללי בישראל",foreignbond:"אג״ח בחו״ל",israelequity:"מניות בישראל",foreignequity:"מניות בחו״ל"};
+const typeNames=Object.keys(categoryNames);
+let catalog=[],performance={},snapshot=null;
+function classify(f){
+ const v=f.category||"";
+ if(v==="קרן כספית")return"money";
+ if(v==="אג״ח בארץ - מדינה")return"gov";
+ if(v==="אג״ח בארץ - חברות והמרה")return"corp";
+ if(v==="אג״ח בארץ - כללי"||v==="אג״ח בארץ משולבת")return"localbond";
+ if(v==="אג״ח בחו״ל")return"foreignbond";
+ if(v==="מניות בארץ")return"israelequity";
+ if(v==='מניות בחו"ל')return"foreignequity";
+ return null;
+}
+function exposure(f){
+ const profile=String(f.profile||"").trim().toUpperCase();
+ if(!/^[0-5][0A-E]$/.test(profile))return null;
+ return{equity:eqProfile[profile[0]],fx:fxProfile[profile[1]]};
+}
+function loadScript(src){return new Promise((resolve,reject)=>{const el=document.createElement("script");el.src=src;el.onload=resolve;el.onerror=()=>reject(new Error("לא ניתן לטעון "+src));document.head.append(el);});}
+function percentile(value,values,lowerBetter){
+ if(values.length<2)return 50;
+ const below=values.filter(n=>lowerBetter?n>value:n<value).length;
+ const ties=values.filter(n=>n===value).length;
+ return 100*(below+(ties-1)/2)/(values.length-1);
+}
+function enrich(f){
+ const p=performance[f.number],v=p?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
+ return{...f,asset:classify(f),exposure:exposure(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null};
+}
+function rankCandidates(funds){
+ const groups=new Map();
+ for(const f of funds){const key=[f.category,f.searchTerms?.[1]||"",f.type].join("|");f.groupKey=key;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(f);}
+ for(const group of groups.values()){
+  const eligible=group.filter(f=>f.ret!==null&&Number.isFinite(f.fee));
+  const returns=eligible.map(x=>x.ret),fees=eligible.map(x=>x.fee);
+  for(const f of group){
+   f.score=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)?
+    .7*percentile(f.ret,returns,false)+.3*percentile(f.fee,fees,true):null;
+  }
+ }
+ return funds;
+}
+function config(){
+ const n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
+ if(!Number.isInteger(n)||n<2||n>20)throw Error("מספר הקרנות חייב להיות בין 2 ל־20.");
+ if(!Number.isFinite(eq)||eq<0||eq>100||!Number.isFinite(fx)||fx<0||fx>100||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
+ const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
+ if(requested.length>n)throw Error("מספר האפיקים הנדרשים גדול ממספר הקרנות שהוגדר.");
+ if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
+ return {n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
+}
+function buildPortfolio(c){
+ const prepared=rankCandidates(catalog.map(enrich).filter(f=>f.asset&&c.allowed.includes(f.asset)&&f.exposure&&f.score!==null
+  &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)
+  &&f.exposure.equity<=200&&f.exposure.fx<=200));
+ const viable=prepared.filter(f=>f.exposure.equity/c.n<=c.eq+1e-8&&f.exposure.fx/c.n<=c.fx+1e-8);
+ const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
+ const missing=c.requested.filter(a=>!perAsset.get(a)?.length);
+ if(missing.length)throw Error("לא נמצאו קרנות עם תשואה ופרופיל חשיפה מאומתים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
+ if(viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר שבחרת במסגרת המגבלות.");
+ // Hard portfolio limits are checked on the *sum of each fund's declared upper-bound exposure*.
+ // Multi-start greedy search, with an asset-coverage stage and diversification penalties.
+ const plans=[];
+ const choose=(iteration)=>{
+  let picked=[],used=new Set(),eq=0,fx=0;
+  const add=f=>{picked.push(f);used.add(f.number);eq+=f.exposure.equity/c.n;fx+=f.exposure.fx/c.n;};
+  const fits=f=>!used.has(f.number)&&eq+f.exposure.equity/c.n<=c.eq+1e-8&&fx+f.exposure.fx/c.n<=c.fx+1e-8;
+  const utility=f=>{
+   const sameManager=picked.filter(x=>x.manager===f.manager).length;
+   const sameGroup=picked.filter(x=>x.groupKey===f.groupKey).length;
+   const concentration=picked.filter(x=>x.asset===f.asset).length;
+   const variance=((f.number.split("").reduce((s,v)=>s+Number(v),0)*17+iteration*31)%47)/47;
+   return f.score-.2*f.fee-12*sameManager-10*sameGroup-3*concentration
+     -(.04+iteration%6*.018)*(f.exposure.equity+f.exposure.fx)+variance*(iteration%9)*.7;
+  };
+  const required=[...c.requested].sort((a,b)=>(perAsset.get(a)?.length||0)-(perAsset.get(b)?.length||0));
+  for(const asset of required){
+   const options=perAsset.get(asset).filter(fits).sort((a,b)=>utility(b)-utility(a));
+   if(!options.length)return null;add(options[0]);
+  }
+  while(picked.length<c.n){
+   const options=viable.filter(fits).sort((a,b)=>utility(b)-utility(a));
+   if(!options.length)return null;add(options[0]);
+  }
+  const assets=new Set(picked.map(f=>f.asset)).size,managers=new Set(picked.map(f=>f.manager)).size;
+  return{picked,eq,fx,quality:picked.reduce((t,f)=>t+f.score,0)/c.n+assets*1.8+managers*1.2};
+ };
+ for(let i=0;i<70;i++){const plan=choose(i);if(plan)plans.push(plan);}
+ if(!plans.length)throw Error("לא נמצא הרכב העומד בכל המגבלות ובמספר הקרנות שביקשת. נסה להפחית את מספר הקרנות או לשנות את האפיקים/תקרות החשיפה. המערכת לא תחרוג מהמגבלות.");
+ plans.sort((a,b)=>b.quality-a.quality);return plans[0];
+}
+function showError(text){$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";}
+function renderPortfolio(plan,c){
+ const {picked,eq,fx}=plan,asof=new Date(snapshot.generatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",dateStyle:"short",timeStyle:"short"});
+ $("message").className="good";
+ $("message").textContent="נמצא הרכב מחקרי של "+picked.length+" קרנות העומד בתקרות החשיפה שהוגדרו, לפי פרופיל החשיפה המרבי של כל קרן. נתוני מאיה: "+asof+".";
+ const fmt=n=>Number.isFinite(n)?n.toFixed(2)+"%":"לא פורסם";
+ const lines=picked.map(f=>({name:f.name,number:f.number,weight:100/c.n,asset:f.asset,ret:f.ret,fee:f.fee,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager}));
+ const html='<div class="summary">'
+  +'<div class="metric"><small>קרנות בתיק</small><strong>'+c.n+'</strong></div>'
+  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
+  +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
+  +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((s,f)=>s+f.fee,0)/c.n)+'</strong></div></div>'
+  +'<p class="note">משקל כל קרן: '+fmt(100/c.n)+'. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
+  +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
+  +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
+  +'</tbody></table></div>'
+  +'<p class="warning">לא נבדקו דירוגי אשראי, מח״מ, מחירי שוק בזמן אמת, מתאמים, נכסי בסיס חופפים או סטיית תקן. האפיקים זוהו מסיווג מאיה בלבד. זהו כלי לבניית הרכב ראשוני לבדיקה מקצועית ולא תיק המומלץ ללקוח.</p>';
+ $("portfolio").innerHTML=html;
+}
+function adjustRisk(){
+ const r=riskLevels[Number($("risk").value)];
+ $("equity").value=r.eq;$("fx").value=r.fx;
+ $("riskExplanation").textContent="רמה "+$("risk").value+" · "+r.name+": מגבלות ברירת המחדל הן מניות עד "+r.eq+"% ומט״ח עד "+r.fx+"%. אפשר להחמיר את המגבלות; ערך גבוה יותר אינו עוקף את גבולות רמת הסיכון. דירוג זה אינו מודד סיכוני אשראי, מח״מ או תנודתיות.";
+ for(const el of document.querySelectorAll("#categories input")){el.disabled=!r.allowed.includes(el.value);if(el.disabled)el.checked=false;}
+}
+$("risk").addEventListener("change",adjustRisk);
+$("reset").addEventListener("click",()=>{$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
+$("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
+(async()=>{
+ try{
+  adjustRisk();
+  const v=Date.now();
+  await loadScript("maya-catalog-data.js?v="+v);
+  for(let i=0;i<16;i++)await loadScript("maya-performance/part-"+String(i).padStart(2,"0")+".js?v="+v);
+  await loadScript("maya-performance-data.js?v="+v);
+  const c=window.FUND_MAYA_CATALOG,p=window.FUND_PERFORMANCE_DATA;
+  if(!Array.isArray(c)||!p?.report?.sourceVerified||!p.funds||c.length!==p.report.listCount)throw Error("מאגר מאיה אינו מאומת, לא ניתן להציע תיק.");
+  catalog=c;performance=p.funds;snapshot=p.report;
+  $("build").disabled=false;$("build").textContent="בנה תיק קרנות";
+  $("message").textContent="הנתונים נטענו ואומתו: "+catalog.length.toLocaleString("he-IL")+" קרנות ממאיה. הגדר את הפרמטרים ולחץ ״בנה תיק״.";
+ }catch(e){showError("טעינת הנתונים נכשלה: "+e.message);}
+})();
+</script></body></html>
