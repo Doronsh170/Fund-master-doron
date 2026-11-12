@@ -1,0 +1,30 @@
+name: Validate portfolio construction agent
+on:
+  push:
+    paths:
+      - 'portfolio-agent.html'
+      - '.github/workflows/validate-portfolio-agent.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript and required safeguards
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm'),assert=require('assert');
+          const html=fs.readFileSync('portfolio-agent.html','utf8');
+          const js=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+          assert(js,'Missing script');
+          new vm.Script(js,{filename:'portfolio-agent.html'});
+          for(const token of ['exposure','buildPortfolio','riskLevels','c.requested','score!==null','sourceVerified','c.eq','c.fx','מגבלות']){
+            assert(js.includes(token),'Missing required guard: '+token);
+          }
+          const link=fs.readFileSync('index.html','utf8');
+          assert(link.includes('portfolio-agent.html'),'Builder link missing in index');
+          console.log('Portfolio agent syntax, constraints and navigation validated.');
+          NODE
