@@ -51,8 +51,8 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <label>גישה לפיזור<select id="diversify"><option value="core">ליבה וקרנות ממוקדות</option><option value="wide">פיזור רחב</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
 <label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
 <label>עדיפות בדירוג<select id="selection"><option value="balanced">תשואה 70% ועלות 30%</option><option value="returns">תשואה 85% ועלות 15%</option><option value="fees">תשואה 40% ועלות 60%</option></select></label>
-</div><p class="note">העדפות היועץ משנות את בחירת הקרנות והמשקולות בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה נדרשים בתיק</legend>
-<p class="note">בחר את האפיקים שתרצה לכלול. הסוכן יבחר לפחות קרן אחת מכל אפיק שסומן, ושאר הקרנות יהיו מאפיקים שנבחרו. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
+</div><p class="note">העדפות היועץ משנות את בחירת הקרנות והמשקולות בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
+<p class="note">סמן את האפיקים שמהם מותר לסוכן לבחור קרנות. סימון אפיק אינו מחייב לשלב אותו בתיק. ההרכב ייקבע על פי דירוג הקרנות, העדפות היועץ ומגבלות הסיכון. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
 <div class="categories" id="categories">
 <label><input type="checkbox" value="money">קרנות כספיות</label>
 <label><input type="checkbox" value="gov" checked>אג״ח מדינה בישראל</label>
@@ -132,8 +132,8 @@ function preferenceScore(f,p){
  const passive=f.type==="קרן סל"||f.type==="קרן מחקה";
  const mix=p.selection==="returns"?[.85,.15]:p.selection==="fees"?[.40,.60]:[.70,.30];
  let bonus=p.style==="passive"?(passive?9:-9):p.style==="active"?(passive?-9:9):0;
- if(f.asset==="gov")bonus+=p.bond==="gov"?12:p.bond==="corp"?-12:0;
- if(f.asset==="corp")bonus+=p.bond==="corp"?12:p.bond==="gov"?-12:0;
+ if(f.asset==="gov")bonus+=p.bond==="gov"?24:p.bond==="corp"?-24:0;
+ if(f.asset==="corp")bonus+=p.bond==="corp"?24:p.bond==="gov"?-24:0;
  return mix[0]*f.returnRank+mix[1]*f.feeRank+bonus;
 }
 function config(){
@@ -142,7 +142,6 @@ function config(){
  if(!Number.isInteger(n)||n<2||n>20)throw Error("מספר הקרנות חייב להיות בין 2 ל־20.");
  if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
- if(requested.length>n)throw Error("מספר האפיקים הנדרשים גדול ממספר הקרנות שהוגדר.");
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
  return {amount,n,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
@@ -154,10 +153,8 @@ function buildPortfolio(c){
  const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null);
  for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
- const missing=c.requested.filter(a=>!perAsset.get(a)?.length);
- if(missing.length)throw Error("לא נמצאו קרנות עם נתוני ביצועים, דמי ניהול ופרופיל חשיפה תקפים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
  if(viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר שבחרת במסגרת המגבלות.");
- const minWeight=5,maxWeight=40; // Every requested category is materially represented.
+ const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
  const riskCost=f=>f.exposure.equity/(c.eq||1)+f.exposure.fx/(c.fx||1);
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
  // The score is a relative ranking within comparable funds, not an estimate of return.
@@ -205,12 +202,6 @@ function buildPortfolio(c){
    const dispersion=c.advisor.diversify==="wide"?1.8:c.advisor.diversify==="focus"?.25:1;
    return f.adjustedScore*.45-riskWeight*riskCost(f)*12-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
-  const required=[...c.requested].sort((a,b)=>(perAsset.get(a)?.length||0)-(perAsset.get(b)?.length||0));
-  for(const asset of required){
-   const candidate=perAsset.get(asset).filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
-   if(!candidate)return null;
-   add(candidate);
-  }
   while(picked.length<c.n){
    const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
    if(!candidate)return null;
@@ -220,12 +211,16 @@ function buildPortfolio(c){
   if(!allocated)return null;
   const {weights,eq,fx}=allocated;
   const spread=c.advisor.diversify==="wide"?3:c.advisor.diversify==="focus"?.15:1;
+  const bondCorp=picked.reduce((t,f,i)=>t+(f.asset==="corp"?weights[i]:0),0);
+  const bondGov=picked.reduce((t,f,i)=>t+(f.asset==="gov"?weights[i]:0),0);
+  const bondTotal=bondCorp+bondGov;
+  const bondAlignment=bondTotal===0?0:c.advisor.bond==="corp"?14*(bondCorp-bondGov)/bondTotal:c.advisor.bond==="gov"?14*(bondGov-bondCorp)/bondTotal:0;
   const quality=picked.reduce((t,f,i)=>t+f.adjustedScore*weights[i]/100,0)
-   +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size);
+   +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size)+bondAlignment;
   return{picked,weights,eq,fx,quality};
  }
  for(let i=0;i<160;i++){const plan=choose(i);if(plan)plans.push(plan);}
- if(!plans.length)throw Error("לא נמצא תיק מאומת עם "+c.n+" קרנות ואפיקי החובה שנבחרו, גם לאחר בדיקת משקלים משתנים (5% עד 40% לקרן). אפשר להרחיב את מספר האפיקים, להפחית קרנות או לשנות מגבלות. לא בוצעה חריגה מהמגבלות.");
+ if(!plans.length)throw Error("לא נמצא תיק מאומת עם "+c.n+" קרנות מבין האפיקים המותרים, גם לאחר בדיקת משקלים משתנים (5% עד 40% לקרן). אפשר לסמן יותר אפיקים מותרים, להפחית את מספר הקרנות או לשנות מגבלות. לא בוצעה חריגה מהמגבלות.");
  plans.sort((a,b)=>b.quality-a.quality);
  return plans[0];
 }
@@ -249,6 +244,7 @@ function renderPortfolio(plan,c){
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
+  +'<p class="note">הרכב אפיקי אג״ח ישירים: קונצרני '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="corp"?weights[i]:0),0))+' מהתיק; ממשלתי '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="gov"?weights[i]:0),0))+' מהתיק. קרנות אג״ח כללי וקרנות אג״ח בחו״ל מוצגות בנפרד ואינן משויכות אוטומטית לאחת הקבוצות.</p>'
   +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
