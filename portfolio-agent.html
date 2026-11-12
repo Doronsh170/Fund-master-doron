@@ -31,7 +31,12 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <label>תקרת חשיפה למט״ח (%)<input id="fx" type="number" min="0" max="100" value="35" step="1"></label>
 </div>
 <p id="riskExplanation" class="note"></p>
-<fieldset><legend>אפיקי השקעה נדרשים בתיק</legend>
+<fieldset><legend>אפיון מקצועי של היועץ</legend><div class="form-grid">
+<label>גישה לניהול<select id="style"><option value="blend">שילוב אקטיבי ופסיבי</option><option value="active">אקטיבי</option><option value="passive">פסיבי</option></select></label>
+<label>גישה לפיזור<select id="diversify"><option value="core">ליבה וקרנות ממוקדות</option><option value="wide">פיזור רחב</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
+<label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
+<label>עדיפות בדירוג<select id="selection"><option value="balanced">תשואה 70% ועלות 30%</option><option value="returns">תשואה 85% ועלות 15%</option><option value="fees">תשואה 40% ועלות 60%</option></select></label>
+</div><p class="note">העדפות היועץ משנות את בחירת הקרנות והמשקולות בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה נדרשים בתיק</legend>
 <p class="note">בחר את האפיקים שתרצה לכלול. הסוכן יבחר לפחות קרן אחת מכל אפיק שסומן, ושאר הקרנות יהיו מאפיקים שנבחרו. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
 <div class="categories" id="categories">
 <label><input type="checkbox" value="money">קרנות כספיות</label>
@@ -100,11 +105,21 @@ function rankCandidates(funds){
   const eligible=group.filter(f=>f.ret!==null&&Number.isFinite(f.fee));
   const returns=eligible.map(x=>x.ret),fees=eligible.map(x=>x.fee);
   for(const f of group){
-   f.score=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)?
-    .7*percentile(f.ret,returns,false)+.3*percentile(f.fee,fees,true):null;
+   f.returnRank=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)?percentile(f.ret,returns,false):null;
+   f.feeRank=f.returnRank===null?null:percentile(f.fee,fees,true);
+   f.score=f.returnRank===null?null:.7*f.returnRank+.3*f.feeRank;
   }
  }
  return funds;
+}
+function advisor(){return{style:$("style").value,diversify:$("diversify").value,bond:$("bond").value,selection:$("selection").value};}
+function preferenceScore(f,p){
+ const passive=f.type==="קרן סל"||f.type==="קרן מחקה";
+ const mix=p.selection==="returns"?[.85,.15]:p.selection==="fees"?[.40,.60]:[.70,.30];
+ let bonus=p.style==="passive"?(passive?9:-9):p.style==="active"?(passive?-9:9):0;
+ if(f.asset==="gov")bonus+=p.bond==="gov"?12:p.bond==="corp"?-12:0;
+ if(f.asset==="corp")bonus+=p.bond==="corp"?12:p.bond==="gov"?-12:0;
+ return mix[0]*f.returnRank+mix[1]*f.feeRank+bonus;
 }
 function config(){
  const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
@@ -114,7 +129,7 @@ function config(){
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.length>n)throw Error("מספר האפיקים הנדרשים גדול ממספר הקרנות שהוגדר.");
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed};
+ return {amount,n,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -122,6 +137,7 @@ function buildPortfolio(c){
   &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)));
  // Missing ranking data must not silently become a fabricated score.
  const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null);
+ for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  const missing=c.requested.filter(a=>!perAsset.get(a)?.length);
  if(missing.length)throw Error("לא נמצאו קרנות עם נתוני ביצועים, דמי ניהול ופרופיל חשיפה תקפים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
@@ -133,7 +149,7 @@ function buildPortfolio(c){
  function allocate(picked,iteration){
   const n=picked.length,w=Array(n).fill(minWeight);
   if(n*minWeight>100||n*maxWeight<100)return null;
-  const strengths=picked.map(f=>0.5+f.score/100);
+  const strengths=picked.map(f=>Math.max(.15,.5+f.adjustedScore/100));
   const strengthTotal=strengths.reduce((a,b)=>a+b,0);
   const targets=strengths.map(v=>100*v/strengthTotal);
   let eq=picked.reduce((t,f)=>t+f.exposure.equity*minWeight/100,0);
@@ -150,7 +166,7 @@ function buildPortfolio(c){
    if(!options.length)return null;
    options.sort((a,b)=>{
     const gapA=targets[a.i]-w[a.i],gapB=targets[b.i]-w[b.i];
-    return gapB-gapA||(b.f.score-a.f.score)||a.i-b.i;
+    return gapB-gapA||(b.f.adjustedScore-a.f.adjustedScore)||a.i-b.i;
    });
    const best=options[0];
    w[best.i]+=1;
@@ -171,7 +187,8 @@ function buildPortfolio(c){
    const sameAsset=picked.filter(x=>x.asset===f.asset).length;
    const noise=((f.number.split("").reduce((t,v)=>t+Number(v),0)*31+iteration*19)%53)/53;
    const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
-   return f.score*.45-riskWeight*riskCost(f)*12-7*sameManager-6*sameGroup-3*sameAsset+noise*(iteration%9)*1.5;
+   const dispersion=c.advisor.diversify==="wide"?1.8:c.advisor.diversify==="focus"?.25:1;
+   return f.adjustedScore*.45-riskWeight*riskCost(f)*12-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   const required=[...c.requested].sort((a,b)=>(perAsset.get(a)?.length||0)-(perAsset.get(b)?.length||0));
   for(const asset of required){
@@ -187,8 +204,9 @@ function buildPortfolio(c){
   const allocated=allocate(picked,iteration);
   if(!allocated)return null;
   const {weights,eq,fx}=allocated;
-  const quality=picked.reduce((t,f,i)=>t+f.score*weights[i]/100,0)+new Set(picked.map(f=>f.asset)).size*1.6
-       +new Set(picked.map(f=>f.manager)).size*1.0;
+  const spread=c.advisor.diversify==="wide"?3:c.advisor.diversify==="focus"?.15:1;
+  const quality=picked.reduce((t,f,i)=>t+f.adjustedScore*weights[i]/100,0)
+   +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size);
   return{picked,weights,eq,fx,quality};
  }
  for(let i=0;i<160;i++){const plan=choose(i);if(plan)plans.push(plan);}
@@ -215,6 +233,7 @@ function renderPortfolio(plan,c){
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
+  +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
   +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
@@ -244,7 +263,7 @@ for(const id of ["equity","fx"]){
  $(id).addEventListener("input",clamp);
  $(id).addEventListener("change",clamp);
 }
-$("reset").addEventListener("click",()=>{$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
+$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
 async function initializeAgent(){
  try{
