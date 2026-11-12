@@ -144,7 +144,7 @@ function config(){
  if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,targetEq:eq*0.9,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
+ return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,targetEq:eq*0.9,minEq:eq*0.9*0.8,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -189,7 +189,10 @@ function buildPortfolio(c){
    if(!options.length)return null;
    options.sort((a,b)=>{
     const gapA=targets[a.i]-w[a.i],gapB=targets[b.i]-w[b.i];
-    return gapB-gapA||(b.f.adjustedScore-a.f.adjustedScore)||a.i-b.i;
+    const equityGain=x=>x.f.exposure.equity/100;
+    const needMoreEquity=eq<c.minEq-1e-7;
+    const preference=x=>targets[x.i]-w[x.i]+(needMoreEquity?2.5*equityGain(x):0);
+    return preference(b)-preference(a)||(b.f.adjustedScore-a.f.adjustedScore)||a.i-b.i;
    });
    const best=options[0];
    w[best.i]+=1;
@@ -198,6 +201,7 @@ function buildPortfolio(c){
    remaining--;
   }
   if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.targetEq+1e-7||fx>c.fx+1e-7)return null;
+  if(eq<c.minEq-1e-7)return null;
   return{weights:w,eq,fx};
  }
  const plans=[];
@@ -212,7 +216,9 @@ function buildPortfolio(c){
    const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
    const dispersion=c.advisor.diversify==="wide"?2.8:c.advisor.diversify==="focus"?.05:1;
    const projectedEq=(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)/(picked.length+1);
-   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-0.33*Math.abs(projectedEq-c.targetEq)-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
+   const riskFitPenalty=(.6+(iteration%4)*.2)*Math.abs(projectedEq-c.targetEq);
+   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty
+     -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
@@ -244,7 +250,7 @@ function buildPortfolio(c){
    if(plan){plan.targetCount=count;plans.push(plan);}
   }
  }
- if(!plans.length)throw Error("לא נמצא תיק תקין במספר הקרנות המבוקש"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
+ if(!plans.length)throw Error("לא נמצא תיק העומד גם בטווח החשיפה המנייתית המתאים לרמת הסיכון וגם במספר הקרנות המבוקש"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
  // When flexible, deviations require a meaningful quality improvement.
  plans.sort((a,b)=>(b.quality-3*Math.abs(b.picked.length-c.n))-(a.quality-3*Math.abs(a.picked.length-c.n)));
  return plans[0];
@@ -265,9 +271,10 @@ function renderPortfolio(plan,c){
  const html='<div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
-  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>יעד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
+  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
+  +'<p class="note">התאמת החשיפה לרמת הסיכון: טווח עבודה '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' לפי פרופילי החשיפה המרבית של הקרנות. אין להסיק מכך את שיעור המניות בפועל, וסיכוני אג״ח ומח״מ אינם מכומתים.</p>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
   +'<p class="note">הרכב אפיקי אג״ח ישירים: קונצרני '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="corp"?weights[i]:0),0))+' מהתיק; ממשלתי '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="gov"?weights[i]:0),0))+' מהתיק. קרנות אג״ח כללי וקרנות אג״ח בחו״ל מוצגות בנפרד ואינן משויכות אוטומטית לאחת הקבוצות.</p>'
   +'<p class="note">סגנון פיזור: '+(c.advisor.diversify==="wide"?"פיזור רחב, העדפה למנהלים וקבוצות סיווג מגוונים ומשקולות מאוזנות":c.advisor.diversify==="focus"?"תיק ממוקד, העדפה לקרנות בדירוג גבוה ומשקולות מרוכזות יותר":"פיזור ליבה עם קרנות ממוקדות")+'. אין מדידה של חפיפת החזקות בפועל.</p>'
