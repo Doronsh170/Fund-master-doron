@@ -144,7 +144,7 @@ function config(){
  if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,targetEq:Math.max(0,eq-10),requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
+ return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,targetEq:eq*0.9,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
