@@ -15,6 +15,7 @@ button{border:0;border-radius:9px;padding:10px 15px;background:#205b94;color:#ff
 .rank{display:inline-block;min-width:28px;text-align:center;border-radius:7px;background:#dfeaf7;padding:5px;font-weight:750}td.name{min-width:200px}
 .subtle{display:block;color:#64748b;font-size:12px;padding-top:3px}.empty{text-align:center;padding:30px;color:#5f7086}
 .bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px}
+.ranking-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}.ranking-tabs button{background:#e7eef7;color:#193958;border:1px solid #c7d7e8}.ranking-tabs button[aria-selected="true"]{background:#205b94;color:#fff;border-color:#205b94}.ranking-tabs button:focus-visible{outline:3px solid #74a9dd;outline-offset:2px}
 details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-height:1.65}
 @media(max-width:690px){.filters{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}.bottom{flex-wrap:wrap}}
 </style></head>
@@ -28,7 +29,9 @@ details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-hei
 </div><div class="stats"><div class="stat" id="total">טוען נתונים ממאיה…</div><div class="stat" id="eligible"></div><div class="stat" id="date"></div></div></section>
 <section class="panel"><details><summary>כיצד מחושב הדירוג?</summary><p>הציון משלב 70% דירוג יחסי של תשואת 12 חודשים ו־30% דירוג יחסי של דמי ניהול שנתיים. לכל מדד מחושב אחוזון ביחס לקרנות באותה קבוצת השוואה. תשואה גבוהה יותר מעלה את הציון; דמי ניהול נמוכים יותר מעלים אותו. התשואה המדווחת ממאיה כבר משקפת את דמי הניהול, ולכן המשקל הנוסף של העלות הוא העדפה מובנית של מודל הדירוג, לא ניכוי נוסף מהתשואה.</p><p>קבוצת ההשוואה נקבעת לפי הסיווג הראשי והמשני של מאיה, ובמידת האפשר גם לפי הסיווג המשני המפורט, ללא ערבוב קרנות סל, מחקות, פתוחות וגידור. נדרשות לפחות חמש קרנות בעלות תשואה תקפה ל־12 חודשים ודמי ניהול מפורסמים באותה קבוצה. לא קיימת הערכה עבור קרנות שלא עומדות בתנאים אלה. אין התאמה לסיכון, לתנודתיות, למדד ייחוס או לחשיפת מטבע ולכן אין לראות בציון הערכה כוללת לאיכות הקרן או המלצת השקעה.</p></details></section>
 <section class="panel">
-<div class="table-scroll"><table><thead><tr><th>דירוג בקבוצה</th><th>קרן</th><th>קבוצת השוואה</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th><th class="num">ציון / 100</th></tr></thead><tbody id="results"><tr><td colspan="6" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
+<div class="ranking-tabs" role="tablist" aria-label="תצוגת קרנות"><button type="button" id="rankingTab" role="tab" aria-selected="true" aria-controls="rankingTable">דירוג קרנות</button><button type="button" id="allFundsTab" role="tab" aria-selected="false" aria-controls="allFundsTable">כל הקרנות בקטגוריה</button></div>
+<div class="table-scroll" id="rankingTable" role="tabpanel" aria-labelledby="rankingTab"><table><thead><tr><th>דירוג בקבוצה</th><th>קרן</th><th>קבוצת השוואה</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th><th class="num">ציון / 100</th></tr></thead><tbody id="results"><tr><td colspan="6" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
+<div class="table-scroll" id="allFundsTable" role="tabpanel" aria-labelledby="allFundsTab" hidden><table><thead><tr><th>מספר קרן</th><th>שם הקרן ומנהל</th><th>סוג קרן</th><th>סיווג ראשי</th><th>סיווג משני</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody id="allResults"><tr><td colspan="7" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
 <div class="bottom"><span class="muted" id="shown"></span><button id="more" hidden>הצג עוד</button></div>
 </section><p class="muted">מקור: מאיה, אתר הבורסה לניירות ערך. כל התשואות ועמלות הניהול מוצגות כפי שפורסמו במקור, במועד הדיווח שלהן. הביצועים ההיסטוריים אינם מבטיחים תשואה עתידית.</p>
 </main>
@@ -75,15 +78,32 @@ function calculate(catalog,performance){
  for(const group of groups.values()){group.sort((a,b)=>b.score-a.score||b.return12-a.return12||a.fee-b.fee);group.forEach((f,i)=>{f.position=i+1;});}
  return data;
 }
-let rows=[],limit=40;
+let rows=[],limit=40,activeTab="ranking";
 function render(){
  const q=$("search").value.toLocaleLowerCase("he").trim(),cat=$("category").value,subcat=$("subcategory").value,sort=$("sort").value;
  let items=rows.filter(f=>(!cat||f.category===cat)&&(!subcat||(f.searchTerms?.[1]||"")===subcat)&&(!q||[f.name,f.number,f.manager].some(x=>String(x||"").toLocaleLowerCase("he").includes(q))));
+ if(activeTab==="ranking")items=items.filter(f=>f.score!==null);
  items.sort((a,b)=>sort==="return"?(b.return12??-Infinity)-(a.return12??-Infinity):sort==="fee"?(a.fee??Infinity)-(b.fee??Infinity):sort==="name"?a.name.localeCompare(b.name,"he"):(b.score??-Infinity)-(a.score??-Infinity)||a.name.localeCompare(b.name,"he"));
- $("results").innerHTML=items.slice(0,limit).map(f=>`<tr><td><span class="rank">${f.position??"—"}</span><span class="subtle">${f.peers?f.peers+" בקבוצה":"ללא דירוג"}</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">לא נמצאו קרנות התואמות לחיפוש</td></tr>';
- $("shown").textContent="מוצגות "+Math.min(items.length,limit)+" מתוך "+items.length+" קרנות";
+ const slice=items.slice(0,limit);
+ if(activeTab==="ranking"){
+  $("results").innerHTML=slice.map(f=>`<tr><td><span class="rank">${f.position??"—"}</span><span class="subtle">${f.peers} בקבוצה</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">אין קרנות מדורגות התואמות לסינון</td></tr>';
+ }else{
+  $("allResults").innerHTML=slice.map(f=>`<tr><td><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.number)}</a></td><td class="name">${esc(f.name)}<span class="subtle">${esc(f.manager)}</span></td><td>${esc(f.type)}</td><td>${esc(f.category)}</td><td>${esc(f.searchTerms?.[1]||"לא פורסם")}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td></tr>`).join("")||'<tr><td colspan="7" class="empty">לא נמצאו קרנות התואמות לסינון</td></tr>';
+ }
+ $("shown").textContent="מוצגות "+Math.min(items.length,limit)+" מתוך "+items.length+" קרנות"+(activeTab==="all"?" (כולל קרנות ללא דירוג)":" מדורגות");
  $("more").hidden=items.length<=limit;
 }
+function switchTab(tab){
+ activeTab=tab;limit=40;
+ for(const [button,panel,key] of [["rankingTab","rankingTable","ranking"],["allFundsTab","allFundsTable","all"]]){
+  const selected=tab===key;
+  $(button).setAttribute("aria-selected",String(selected));
+  $(panel).hidden=!selected;
+ }
+ render();
+}
+$("rankingTab").addEventListener("click",()=>switchTab("ranking"));
+$("allFundsTab").addEventListener("click",()=>switchTab("all"));
 function updateSubcategories(){
  const category=$("category").value,select=$("subcategory"),previous=select.value;
  select.replaceChildren(new Option("כל הסיווגים המשניים",""));
