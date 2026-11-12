@@ -177,14 +177,14 @@ function buildPortfolio(c){
   const targets=strengths.map(v=>100*v/strengthTotal);
   let eq=picked.reduce((t,f)=>t+f.exposure.equity*minWeight/100,0);
   let fx=picked.reduce((t,f)=>t+f.exposure.fx*minWeight/100,0);
-  if(eq>c.eq+1e-8||fx>c.fx+1e-8)return null;
+  if(eq>c.targetEq+1e-8||fx>c.fx+1e-8)return null;
   // Add one percentage point at a time to the most underweighted fund
   // relative to its ranking target. Exposure constraints always take priority.
   let remaining=100-n*minWeight;
   while(remaining>0){
    const options=picked.map((f,i)=>({f,i}))
     .filter(x=>w[x.i]<maxWeight
-      &&eq+x.f.exposure.equity/100<=c.eq+1e-8
+      &&eq+x.f.exposure.equity/100<=c.targetEq+1e-8
       &&fx+x.f.exposure.fx/100<=c.fx+1e-8);
    if(!options.length)return null;
    options.sort((a,b)=>{
@@ -197,7 +197,7 @@ function buildPortfolio(c){
    fx+=best.f.exposure.fx/100;
    remaining--;
   }
-  if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.eq+1e-7||fx>c.fx+1e-7)return null;
+  if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.targetEq+1e-7||fx>c.fx+1e-7)return null;
   return{weights:w,eq,fx};
  }
  const plans=[];
