@@ -47,7 +47,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 </section>
 <section class="panel" id="output" aria-live="polite"><h2>תיק מוצע</h2><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
 <section class="panel"><h2>איך נבחרות הקרנות?</h2>
-<p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מרכיב תיק במשקלים משתנים (5% עד 40% לקרן), עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
+<p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מקצה משקל יחסי לפי דירוג הקרנות, כאשר 5% עד 40% לקרן הם גבולות בלבד, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
 <p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
 <footer>כלי מחקר והמחשה בלבד. אין לראות בתיק ייעוץ השקעות אישי, המלצה לרכישה או תחליף לבחינת צרכים, אופק השקעה, נזילות, יכולת לשאת הפסד, מדיניות הקרנות העדכנית, עלויות ומיסוי. תשואות עבר אינן מבטיחות תשואות עתידיות. תיק העומד בתקרות הפרופיל אינו בהכרח בעל רמת סיכון נמוכה: סיכוני אשראי, ריבית, מח״מ, נזילות וריכוזיות אינם נמדדים כאן.</footer>
 </section></main>
@@ -128,29 +128,37 @@ function buildPortfolio(c){
  if(viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר שבחרת במסגרת המגבלות.");
  const minWeight=5,maxWeight=40; // Every requested category is materially represented.
  const riskCost=f=>f.exposure.equity/(c.eq||1)+f.exposure.fx/(c.fx||1);
- // Solve a feasible capped allocation for a selected combination of funds.
- // Start each fund at 5%. Allocate residual to the less exposure-intensive funds,
- // subject to individual 40% caps and BOTH portfolio limits.
+ // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
+ // The score is a relative ranking within comparable funds, not an estimate of return.
  function allocate(picked,iteration){
   const n=picked.length,w=Array(n).fill(minWeight);
+  if(n*minWeight>100||n*maxWeight<100)return null;
+  const strengths=picked.map(f=>0.5+f.score/100);
+  const strengthTotal=strengths.reduce((a,b)=>a+b,0);
+  const targets=strengths.map(v=>100*v/strengthTotal);
   let eq=picked.reduce((t,f)=>t+f.exposure.equity*minWeight/100,0);
   let fx=picked.reduce((t,f)=>t+f.exposure.fx*minWeight/100,0);
   if(eq>c.eq+1e-8||fx>c.fx+1e-8)return null;
-  // Allocate in whole percent increments so totals are exact and displayed weights
-  // correspond to the constraints actually checked.
-  const order=picked.map((f,i)=>({f,i,cost:riskCost(f),variety:(iteration*31+i*17)%19}));
-  order.sort((a,b)=>a.cost-b.cost||(b.f.score-a.f.score)+0.001*(a.variety-b.variety));
-  let remaining=100-minWeight*n;
-  for(const x of order){
-   if(remaining===0)break;
-   let budget=Math.min(maxWeight-minWeight,remaining);
-   const f=x.f;
-   if(f.exposure.equity>0)budget=Math.min(budget,Math.floor(Math.max(0,(c.eq-eq)*100/f.exposure.equity)+1e-8));
-   if(f.exposure.fx>0)budget=Math.min(budget,Math.floor(Math.max(0,(c.fx-fx)*100/f.exposure.fx)+1e-8));
-   if(budget<1)continue;
-   w[x.i]+=budget;eq+=f.exposure.equity*budget/100;fx+=f.exposure.fx*budget/100;remaining-=budget;
+  // Add one percentage point at a time to the most underweighted fund
+  // relative to its ranking target. Exposure constraints always take priority.
+  let remaining=100-n*minWeight;
+  while(remaining>0){
+   const options=picked.map((f,i)=>({f,i}))
+    .filter(x=>w[x.i]<maxWeight
+      &&eq+x.f.exposure.equity/100<=c.eq+1e-8
+      &&fx+x.f.exposure.fx/100<=c.fx+1e-8);
+   if(!options.length)return null;
+   options.sort((a,b)=>{
+    const gapA=targets[a.i]-w[a.i],gapB=targets[b.i]-w[b.i];
+    return gapB-gapA||(b.f.score-a.f.score)||a.i-b.i;
+   });
+   const best=options[0];
+   w[best.i]+=1;
+   eq+=best.f.exposure.equity/100;
+   fx+=best.f.exposure.fx/100;
+   remaining--;
   }
-  if(remaining!==0||eq>c.eq+1e-7||fx>c.fx+1e-7)return null;
+  if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.eq+1e-7||fx>c.fx+1e-7)return null;
   return{weights:w,eq,fx};
  }
  const plans=[];
@@ -207,7 +215,7 @@ function renderPortfolio(plan,c){
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
-  +'<p class="note">המשקלים מותאמים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
+  +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
