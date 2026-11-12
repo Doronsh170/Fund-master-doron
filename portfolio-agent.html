@@ -40,12 +40,13 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <section class="panel config"><h2>הגדרות התיק</h2>
 <div class="form-grid">
 <label>סכום התיק (₪)<input id="amount" type="number" min="1" max="1000000000000" step="1" placeholder="לדוגמה 100000" required></label>
-<label>מספר קרנות בתיק<input id="count" type="number" min="2" max="20" step="1" value="6"></label>
+<label>מספר קרנות מבוקש<input id="count" type="number" min="3" max="20" step="1" value="6"></label>
+<label>אופן קביעת מספר הקרנות<select id="countMode"><option value="exact">מדויק, בדיוק המספר שנבחר</option><option value="flex">גמיש, עד שתי קרנות יותר או פחות</option></select></label>
 <label>רמת סיכון<select id="risk"><option value="1">1 · נמוכה מאוד</option><option value="2">2 · נמוכה</option><option value="3" selected>3 · בינונית</option><option value="4">4 · גבוהה</option><option value="5">5 · גבוהה מאוד</option></select></label>
 <label>תקרת חשיפה למניות (%)<input id="equity" type="number" min="0" max="100" value="30" step="1"></label>
 <label>תקרת חשיפה למט״ח (%)<input id="fx" type="number" min="0" max="100" value="35" step="1"></label>
 </div>
-<p id="riskExplanation" class="note"></p>
+<p id="riskExplanation" class="note"></p><p class="note">מספר קרנות מדויק מחייב את המספר שבחרת. במצב גמיש הסוכן יבדוק עד שתי קרנות פחות או יותר, וישנה את המספר רק כאשר נמצא הרכב בעל דירוג משוקלל טוב יותר, תוך שמירה על כל מגבלות החשיפה.</p>
 <fieldset><legend>אפיון מקצועי של היועץ</legend><div class="form-grid">
 <label>גישה לניהול<select id="style"><option value="blend">שילוב אקטיבי ופסיבי</option><option value="active">אקטיבי</option><option value="passive">פסיבי</option></select></label>
 <label>גישה לפיזור<select id="diversify"><option value="core">ליבה וקרנות ממוקדות</option><option value="wide">פיזור רחב</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
@@ -139,11 +140,11 @@ function preferenceScore(f,p){
 function config(){
  const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
  if($("amount").value.trim()===""||!Number.isSafeInteger(amount)||amount<1||amount>1000000000000)throw Error("יש להזין סכום תיק שלם וחיובי בשקלים.");
- if(!Number.isInteger(n)||n<2||n>20)throw Error("מספר הקרנות חייב להיות בין 2 ל־20.");
+ if(!Number.isInteger(n)||n<3||n>20)throw Error("מספר הקרנות חייב להיות בין 3 ל־20 עקב מגבלת 40% לקרן.");
  if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
+ return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -153,7 +154,7 @@ function buildPortfolio(c){
  const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null);
  for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
- if(viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר שבחרת במסגרת המגבלות.");
+ if(viable.length<Math.min(c.n,3))throw Error("אין מספיק קרנות כשירות לבניית תיק במסגרת המגבלות.");
  const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
  const riskCost=f=>f.exposure.equity/(c.eq||1)+f.exposure.fx/(c.fx||1);
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
@@ -190,7 +191,7 @@ function buildPortfolio(c){
   return{weights:w,eq,fx};
  }
  const plans=[];
- function choose(iteration){
+ function choose(iteration,targetCount){
   const picked=[],used=new Set();
   const add=f=>{picked.push(f);used.add(f.number);};
   const utility=f=>{
@@ -202,7 +203,7 @@ function buildPortfolio(c){
    const dispersion=c.advisor.diversify==="wide"?1.8:c.advisor.diversify==="focus"?.25:1;
    return f.adjustedScore*.45-riskWeight*riskCost(f)*12-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
-  while(picked.length<c.n){
+  while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
    if(!candidate)return null;
    add(candidate);
@@ -219,9 +220,19 @@ function buildPortfolio(c){
    +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size)+bondAlignment;
   return{picked,weights,eq,fx,quality};
  }
- for(let i=0;i<160;i++){const plan=choose(i);if(plan)plans.push(plan);}
- if(!plans.length)throw Error("לא נמצא תיק מאומת עם "+c.n+" קרנות מבין האפיקים המותרים, גם לאחר בדיקת משקלים משתנים (5% עד 40% לקרן). אפשר לסמן יותר אפיקים מותרים, להפחית את מספר הקרנות או לשנות מגבלות. לא בוצעה חריגה מהמגבלות.");
- plans.sort((a,b)=>b.quality-a.quality);
+ const counts=c.countMode==="flex"
+  ?[c.n,c.n-1,c.n+1,c.n-2,c.n+2].filter(n=>n>=3&&n<=20&&n<=viable.length)
+  :[c.n];
+ if(c.countMode==="exact"&&viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר המדויק שהוגדר.");
+ for(const count of counts){
+  for(let i=0;i<80;i++){
+   const plan=choose(i,count);
+   if(plan){plan.targetCount=count;plans.push(plan);}
+  }
+ }
+ if(!plans.length)throw Error("לא נמצא תיק תקין במספר הקרנות המבוקש"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
+ // When flexible, deviations require a meaningful quality improvement.
+ plans.sort((a,b)=>(b.quality-3*Math.abs(b.picked.length-c.n))-(a.quality-3*Math.abs(a.picked.length-c.n)));
  return plans[0];
 }
 function showError(text){latestShareText="";$("share-actions").hidden=true;$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";}
@@ -239,7 +250,7 @@ function renderPortfolio(plan,c){
  });
  const html='<div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
-  +'<div class="metric"><small>קרנות בתיק</small><strong>'+c.n+'</strong></div>'
+  +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
@@ -257,6 +268,7 @@ function renderPortfolio(plan,c){
   "נתוני מאיה: "+asof,
   "סכום תיק: "+currency(c.amount),
   "רמת סיכון: "+c.risk.name,
+  "מספר קרנות: "+picked.length+(c.countMode==="flex"?" (יעד "+c.n+", גמיש)":" (מדויק)"),
   "תקרות משוקללות: מניות "+fmt(eq)+", מט״ח "+fmt(fx),
   "דמי ניהול משוקללים: "+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0)),
   "העדפות היועץ: "+advisorChoices.join(" | "),
@@ -290,7 +302,7 @@ for(const id of ["equity","fx"]){
  $(id).addEventListener("input",clamp);
  $(id).addEventListener("change",clamp);
 }
-$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";latestShareText="";$("share-actions").hidden=true;});
+$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("countMode").value="exact";$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";latestShareText="";$("share-actions").hidden=true;});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
 $("share-whatsapp").addEventListener("click",()=>{
  if(!latestShareText)return;
