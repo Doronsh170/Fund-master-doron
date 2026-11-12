@@ -14,6 +14,15 @@ button{border:0;border-radius:9px;padding:10px 15px;background:#205b94;color:#ff
 .table-scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:820px;font-size:13px;text-align:right}th,td{padding:11px 9px;border-bottom:1px solid #e6ebf2;vertical-align:middle}th{background:#f0f4f9;white-space:nowrap;position:sticky;top:0}td.num{text-align:left;direction:ltr;font-variant-numeric:tabular-nums}th.num{text-align:left}
 .rank{display:inline-block;min-width:28px;text-align:center;border-radius:7px;background:#dfeaf7;padding:5px;font-weight:750}td.name{min-width:200px}
 .subtle{display:block;color:#64748b;font-size:12px;padding-top:3px}.empty{text-align:center;padding:30px;color:#5f7086}
+.rank-open{display:inline-block;min-width:34px;background:#dfeaf7;color:#123b68;border:1px solid #b9cee6;border-radius:7px;padding:6px 10px;min-height:38px;font-weight:750;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.rank-open:hover,.rank-open:focus-visible{background:#c5ddf5;outline:2px solid #316da7;outline-offset:1px}
+.rank-dialog{width:min(96vw,960px);max-height:85dvh;border:1px solid #ccd8e7;border-radius:16px;padding:0;box-shadow:0 14px 50px #142d4b55;background:#fff;color:#172945}
+.rank-dialog::backdrop{background:#101e3488}.rank-dialog-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #e2e8f0}
+.rank-dialog-header h2{margin:0 0 5px}.rank-dialog-header p{margin:0;font-size:13px;color:#64748b;line-height:1.5}
+.rank-dialog-close{background:#e7eef7;color:#173757;min-height:36px;padding:8px 12px}
+.rank-dialog-body{padding:12px 14px 18px;max-height:calc(85dvh - 100px);overflow:auto}
+.rank-dialog table{min-width:590px}.rank-dialog .current-fund{background:#e9f3ff;font-weight:700}
+
 .bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px}
 .ranking-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}.ranking-tabs button{background:#e7eef7;color:#193958;border:1px solid #c7d7e8}.ranking-tabs button[aria-selected="true"]{background:#205b94;color:#fff;border-color:#205b94}.ranking-tabs button:focus-visible{outline:3px solid #74a9dd;outline-offset:2px}
 details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-height:1.65}
@@ -33,7 +42,12 @@ details summary{cursor:pointer;font-weight:700}details p{font-size:13px;line-hei
 <div class="table-scroll" id="rankingTable" role="tabpanel" aria-labelledby="rankingTab"><table><thead><tr><th>דירוג בקבוצה</th><th>קרן</th><th>קבוצת השוואה</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th><th class="num">ציון / 100</th></tr></thead><tbody id="results"><tr><td colspan="6" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
 <div class="table-scroll" id="allFundsTable" role="tabpanel" aria-labelledby="allFundsTab" hidden><table><thead><tr><th>מספר קרן</th><th>שם הקרן ומנהל</th><th>סוג קרן</th><th>סיווג ראשי</th><th>סיווג משני</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody id="allResults"><tr><td colspan="7" class="empty">הנתונים נטענים…</td></tr></tbody></table></div>
 <div class="bottom"><span class="muted" id="shown"></span><button id="more" hidden>הצג עוד</button></div>
-</section><p class="muted">מקור: מאיה, אתר הבורסה לניירות ערך. כל התשואות ועמלות הניהול מוצגות כפי שפורסמו במקור, במועד הדיווח שלהן. הביצועים ההיסטוריים אינם מבטיחים תשואה עתידית.</p>
+</section>
+<dialog id="groupRankingDialog" class="rank-dialog" aria-labelledby="groupRankingTitle">
+ <div class="rank-dialog-header"><div><h2 id="groupRankingTitle">דירוג הקרנות בקבוצת ההשוואה</h2><p id="groupRankingSubtitle"></p></div><button type="button" class="rank-dialog-close" id="closeGroupRanking" aria-label="סגירת טבלת הדירוג">סגור ✕</button></div>
+ <div class="rank-dialog-body"><div class="table-scroll"><table><thead><tr><th>מקום</th><th>קרן</th><th class="num">תשואת 12 חודשים</th><th class="num">דמי ניהול</th><th class="num">ציון</th></tr></thead><tbody id="groupRankingRows"></tbody></table></div><p class="muted">הדירוג יחסי לקבוצת ההשוואה של הקרן, על בסיס נתוני מאיה. לחיצה על מספר הקרן תפתח את העמוד שלה במאיה.</p></div>
+</dialog>
+<p class="muted">מקור: מאיה, אתר הבורסה לניירות ערך. כל התשואות ועמלות הניהול מוצגות כפי שפורסמו במקור, במועד הדיווח שלהן. הביצועים ההיסטוריים אינם מבטיחים תשואה עתידית.</p>
 </main>
 <script>
 "use strict";
@@ -79,6 +93,27 @@ function calculate(catalog,performance){
  return data;
 }
 let rows=[],limit=40,activeTab="ranking";
+function showGroupRanking(fundNumber){
+ const current=rows.find(f=>f.number===fundNumber&&Number.isFinite(f.score)&&Number.isFinite(f.position));
+ if(!current)return;
+ // groupText is precisely the ranking bucket used to assign each fund's position,
+ // including its MAYA classification and fund type. Never use the current search filter.
+ const group=rows.filter(f=>f.groupText===current.groupText&&Number.isFinite(f.position))
+   .sort((a,b)=>a.position-b.position||b.score-a.score||a.number.localeCompare(b.number));
+ $("groupRankingTitle").textContent="דירוג הקרנות בקבוצה";
+ $("groupRankingSubtitle").textContent=current.groupText+" · "+group.length+" קרנות · נבחרה: "+current.name+" (מקום "+current.position+")";
+ $("groupRankingRows").innerHTML=group.map(f=>`<tr class="${f.number===fundNumber?"current-fund":""}"><td><strong>${f.position}</strong></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}${f.number===fundNumber?" · הקרן שנבחרה":""}</span></td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("");
+ const modal=$("groupRankingDialog");
+ if(typeof modal.showModal==="function")modal.showModal();else modal.setAttribute("open","");
+ const selected=modal.querySelector(".current-fund");
+ selected?.scrollIntoView({block:"nearest",behavior:"instant"});
+}
+$("results").addEventListener("click",event=>{
+ const trigger=event.target.closest("button[data-rank-fund]");
+ if(trigger&&$("results").contains(trigger))showGroupRanking(trigger.dataset.rankFund);
+});
+$("closeGroupRanking").addEventListener("click",()=>$("groupRankingDialog").close());
+$("groupRankingDialog").addEventListener("click",event=>{if(event.target===$("groupRankingDialog"))event.target.close();});
 function render(){
  const q=$("search").value.toLocaleLowerCase("he").trim(),cat=$("category").value,subcat=$("subcategory").value,sort=$("sort").value;
  let items=rows.filter(f=>(!cat||f.category===cat)&&(!subcat||(f.searchTerms?.[1]||"")===subcat)&&(!q||[f.name,f.number,f.manager].some(x=>String(x||"").toLocaleLowerCase("he").includes(q))));
@@ -86,7 +121,7 @@ function render(){
  items.sort((a,b)=>sort==="return"?(b.return12??-Infinity)-(a.return12??-Infinity):sort==="fee"?(a.fee??Infinity)-(b.fee??Infinity):sort==="name"?a.name.localeCompare(b.name,"he"):(b.score??-Infinity)-(a.score??-Infinity)||a.name.localeCompare(b.name,"he"));
  const slice=items.slice(0,limit);
  if(activeTab==="ranking"){
-  $("results").innerHTML=slice.map(f=>`<tr><td><span class="rank">${f.position??"—"}</span><span class="subtle">${f.peers} בקבוצה</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">אין קרנות מדורגות התואמות לסינון</td></tr>';
+  $("results").innerHTML=slice.map(f=>`<tr><td><button type="button" class="rank-open" data-rank-fund="${esc(f.number)}" aria-label="הצג את כל דירוג הקרנות בקבוצת ההשוואה של ${esc(f.name)}">${f.position??"—"}</button><span class="subtle">${f.peers} בקבוצה</span></td><td class="name"><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a><span class="subtle">${esc(f.manager)} · ${esc(f.number)}</span></td><td>${esc(f.groupText)}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td><td class="num"><strong>${scoreFmt(f.score)}</strong></td></tr>`).join("")||'<tr><td colspan="6" class="empty">אין קרנות מדורגות התואמות לסינון</td></tr>';
  }else{
   $("allResults").innerHTML=slice.map(f=>`<tr><td><a href="${/^https:\/\/maya\.tase\.co\.il\//.test(f.source)?esc(f.source):"#"}" target="_blank" rel="noopener noreferrer">${esc(f.number)}</a></td><td class="name">${esc(f.name)}<span class="subtle">${esc(f.manager)}</span></td><td>${esc(f.type)}</td><td>${esc(f.category)}</td><td>${esc(f.searchTerms?.[1]||"לא פורסם")}</td><td class="num">${fmt(f.return12)}</td><td class="num">${fmt(f.fee)}</td></tr>`).join("")||'<tr><td colspan="7" class="empty">לא נמצאו קרנות התואמות לסינון</td></tr>';
  }
