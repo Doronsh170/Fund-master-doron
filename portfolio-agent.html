@@ -6,14 +6,29 @@ body{margin:0}header{background:linear-gradient(110deg,#102c4b,#25618e);color:wh
 main{padding:18px 13px 45px}.panel{background:#fff;border:1px solid #dfe5ee;border-radius:15px;padding:18px;margin-bottom:16px;box-shadow:0 4px 15px #102f5610}
 .form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:700}input,select{min-height:44px;border:1px solid #c5d2e1;border-radius:8px;padding:10px;font:inherit;color:#17314e;width:100%;background:white}
 fieldset{border:1px solid #d7e1ed;border-radius:10px;margin:15px 0 0;padding:12px}legend{font-weight:750;padding:0 7px}.categories{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.categories label{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;background:#f3f7fc;padding:11px;border-radius:8px}.categories input{width:18px;min-height:18px;height:18px;margin:0}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:9px;background:#205b94;color:white;font-size:15px;font-weight:750;padding:12px 20px;min-height:44px;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#e6eff8;color:#1b4169}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.share-actions[hidden]{display:none!important}button{border:0;border-radius:9px;background:#205b94;color:white;font-size:15px;font-weight:750;padding:12px 20px;min-height:44px;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#e6eff8;color:#1b4169}
 .note{font-size:13px;color:#596e86;line-height:1.65}.warning{background:#fff7e7;border-right:4px solid #c58a26;padding:12px;margin-top:12px}.error{background:#fff0ed;border-right:4px solid #b74e42;padding:12px;margin-top:12px}.good{background:#eaf7ef;border-right:4px solid #347d55;padding:12px;margin-top:12px}
 .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}.metric{background:#eff5fa;border-radius:9px;padding:12px}.metric small{display:block;color:#526985}.metric strong{font-size:20px}
 .table-scroll{overflow-x:auto}table{width:100%;min-width:850px;border-collapse:collapse;font-size:13px}th,td{padding:11px 9px;border-bottom:1px solid #e6ebf1;text-align:right}th{background:#edf3f8;white-space:nowrap}td.num,th.num{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}td a{color:#1765a4}td small{display:block;color:#5e6c7d;margin-top:3px}
 footer{font-size:12px;line-height:1.7;color:#576b83;margin-top:20px}
 @media(max-width:750px){.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.categories{grid-template-columns:1fr 1fr}.summary{grid-template-columns:1fr 1fr}}
 @media(max-width:450px){.form-grid{grid-template-columns:1fr 1fr}.categories{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}}
-@media print{header,.actions,.config{display:none!important}body{background:#fff}.panel{border:0;box-shadow:none}table{font-size:11px}}
+@media print{
+ @page{size:A4 portrait;margin:12mm}
+ header,.actions,.config,.share-actions,#agent-login{display:none!important}
+ .print-heading{display:block!important}
+ body{background:#fff;color:#17314e}
+ main{max-width:none;padding:0}
+ .panel{border:0;box-shadow:none;padding:0}
+ .table-scroll{overflow:visible}
+ table{min-width:0;width:100%;font-size:9px;table-layout:auto}
+ td,th{padding:6px 4px;overflow-wrap:anywhere}
+ tr,.summary,.warning{break-inside:avoid}
+ .summary{grid-template-columns:repeat(5,minmax(0,1fr))}
+ .metric{padding:6px}
+ .metric strong{font-size:13px}
+ .note,.warning{font-size:10px}
+}
 
 body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{display:none}
 #agent-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f4f6fa}
@@ -50,7 +65,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <div class="actions"><button id="build" disabled>טוען נתוני מאיה...</button><button id="reset" type="button" class="secondary">איפוס להגדרות ברירת מחדל</button></div>
 <p class="note">רמות הסיכון הן מסגרת סינון מחקרית ולא מדד סיכון רשמי. הסוכן אינו יודע להסיק דירוג אשראי, מח״מ, תנודתיות או מתאם בין קרנות מנתוני הסיווג בלבד.</p>
 </section>
-<section class="panel" id="output" aria-live="polite"><h2>תיק מוצע</h2><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
+<section class="panel" id="output" aria-live="polite"><div class="print-heading" style="display:none"><h1>תיק קרנות, דוח מחקרי</h1><p>סוכן בניית תיקי קרנות | Doron Tools</p></div><h2>תיק מוצע</h2><div id="share-actions" class="actions share-actions" hidden><button id="share-whatsapp" type="button">שיתוף בווטסאפ</button><button id="share-pdf" type="button" class="secondary">שמירה כ־PDF</button></div><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
 <section class="panel"><h2>איך נבחרות הקרנות?</h2>
 <p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מקצה משקל יחסי לפי דירוג הקרנות, כאשר 5% עד 40% לקרן הם גבולות בלבד, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
 <p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
@@ -70,7 +85,7 @@ const eqProfile={"0":0,"1":10,"2":30,"3":50,"4":120,"5":200};
 const fxProfile={"0":0,A:10,B:30,C:50,D:120,E:200};
 const categoryNames={money:"קרנות כספיות",gov:"אג״ח מדינה בישראל",corp:"אג״ח חברות בישראל",localbond:"אג״ח כללי בישראל",foreignbond:"אג״ח בחו״ל",israelequity:"מניות בישראל",foreignequity:"מניות בחו״ל"};
 const typeNames=Object.keys(categoryNames);
-let catalog=[],performance={},snapshot=null;
+let catalog=[],performance={},snapshot=null,latestShareText="";
 function classify(f){
  const v=String(f.category||"").replace(/[״“”]/g,'"').trim();
  if(v==="קרן כספית")return"money";
@@ -214,7 +229,7 @@ function buildPortfolio(c){
  plans.sort((a,b)=>b.quality-a.quality);
  return plans[0];
 }
-function showError(text){$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";}
+function showError(text){latestShareText="";$("share-actions").hidden=true;$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";}
 function renderPortfolio(plan,c){
  const {picked,weights,eq,fx}=plan,asof=new Date(snapshot.generatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",dateStyle:"short",timeStyle:"short"});
  $("message").className="good";
@@ -240,6 +255,22 @@ function renderPortfolio(plan,c){
   +'</tbody></table></div>'
   +'<p class="warning">גילוי נאות: התיק נבנה באמצעות מודל ממוחשב על בסיס נתונים פומביים וקריטריונים כמותיים. המידע מיועד למחקר ולהמחשה בלבד ואינו מהווה ייעוץ השקעות, שיווק השקעות או המלצה לפעולה. המודל אינו בוחן התאמה אישית לצורכי המשקיע. השקעה כרוכה בסיכון, תשואות עבר אינן מעידות על תשואות עתידיות.</p>';
  $("portfolio").innerHTML=html;
+ const advisorChoices=["style","diversify","bond","selection"].map(id=>$(id).selectedOptions[0].text);
+ latestShareText=[
+  "*תיק קרנות, סיכום מחקרי*",
+  "נתוני מאיה: "+asof,
+  "סכום תיק: "+currency(c.amount),
+  "רמת סיכון: "+c.risk.name,
+  "תקרות משוקללות: מניות "+fmt(eq)+", מט״ח "+fmt(fx),
+  "דמי ניהול משוקללים: "+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0)),
+  "העדפות היועץ: "+advisorChoices.join(" | "),
+  "",
+  "*הרכב התיק:*",
+  ...lines.map((f,i)=>(i+1)+". "+f.name+" ("+f.number+") | "+fmt(f.weight)+" | "+currency(f.allocation)),
+  "",
+  "גילוי נאות: התיק נבנה באמצעות מודל ממוחשב על בסיס נתונים פומביים וקריטריונים כמותיים. המידע מיועד למחקר ולהמחשה בלבד ואינו מהווה ייעוץ השקעות, שיווק השקעות או המלצה לפעולה. המודל אינו בוחן התאמה אישית לצורכי המשקיע. השקעה כרוכה בסיכון, תשואות עבר אינן מעידות על תשואות עתידיות."
+ ].join("\n");
+ $("share-actions").hidden=false;
 }
 function adjustRisk(){
  const r=riskLevels[Number($("risk").value)];
@@ -263,8 +294,16 @@ for(const id of ["equity","fx"]){
  $(id).addEventListener("input",clamp);
  $(id).addEventListener("change",clamp);
 }
-$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
+$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";latestShareText="";$("share-actions").hidden=true;});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
+$("share-whatsapp").addEventListener("click",()=>{
+ if(!latestShareText)return;
+ window.open("https://wa.me/?text="+encodeURIComponent(latestShareText),"_blank","noopener,noreferrer");
+});
+$("share-pdf").addEventListener("click",()=>{
+ if(!latestShareText)return;
+ window.print();
+});
 async function initializeAgent(){
  try{
   adjustRisk();
