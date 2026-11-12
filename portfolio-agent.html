@@ -41,7 +41,7 @@ footer{font-size:12px;line-height:1.7;color:#576b83;margin-top:20px}
 </section>
 <section class="panel" id="output" aria-live="polite"><h2>תיק מוצע</h2><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
 <section class="panel"><h2>איך נבחרות הקרנות?</h2>
-<p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מרכיב תיק במשקלים שווים, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
+<p class="note">הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג מועמדות בתוך קבוצות סיווג דומות לפי תשואת 12 חודשים ודמי ניהול (70% / 30%). הוא מרכיב תיק במשקלים משתנים (5% עד 40% לקרן), עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
 <p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
 <footer>כלי מחקר והמחשה בלבד. אין לראות בתיק ייעוץ השקעות אישי, המלצה לרכישה או תחליף לבחינת צרכים, אופק השקעה, נזילות, יכולת לשאת הפסד, מדיניות הקרנות העדכנית, עלויות ומיסוי. תשואות עבר אינן מבטיחות תשואות עתידיות. תיק העומד בתקרות הפרופיל אינו בהכרח בעל רמת סיכון נמוכה: סיכוני אשראי, ריבית, מח״מ, נזילות וריכוזיות אינם נמדדים כאן.</footer>
 </section></main>
@@ -110,60 +110,90 @@ function config(){
  return {n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
 }
 function buildPortfolio(c){
- // Rank before filtering on score. The official MAYA peer group is calculated
- // across the whole eligible universe, independently of the user's allocation limits.
+ // The peer score is computed using the complete MAYA universe, before user restrictions.
  const universe=rankCandidates(catalog.map(enrich).filter(f=>f.asset&&f.exposure&&f.exposure.equity<=200&&f.exposure.fx<=200
   &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)));
- const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null&&
-  f.exposure.equity/c.n<=c.eq+1e-8&&f.exposure.fx/c.n<=c.fx+1e-8);
+ // Missing ranking data must not silently become a fabricated score.
+ const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  const missing=c.requested.filter(a=>!perAsset.get(a)?.length);
- if(missing.length)throw Error("לא נמצאו קרנות עם תשואה ופרופיל חשיפה מאומתים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
+ if(missing.length)throw Error("לא נמצאו קרנות עם נתוני ביצועים, דמי ניהול ופרופיל חשיפה תקפים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
  if(viable.length<c.n)throw Error("אין מספיק קרנות כשירות למספר שבחרת במסגרת המגבלות.");
- // Hard portfolio limits are checked on the *sum of each fund's declared upper-bound exposure*.
- // Multi-start greedy search, with an asset-coverage stage and diversification penalties.
+ const minWeight=5,maxWeight=40; // Every requested category is materially represented.
+ const riskCost=f=>f.exposure.equity/(c.eq||1)+f.exposure.fx/(c.fx||1);
+ // Solve a feasible capped allocation for a selected combination of funds.
+ // Start each fund at 5%. Allocate residual to the less exposure-intensive funds,
+ // subject to individual 40% caps and BOTH portfolio limits.
+ function allocate(picked,iteration){
+  const n=picked.length,w=Array(n).fill(minWeight);
+  let eq=picked.reduce((t,f)=>t+f.exposure.equity*minWeight/100,0);
+  let fx=picked.reduce((t,f)=>t+f.exposure.fx*minWeight/100,0);
+  if(eq>c.eq+1e-8||fx>c.fx+1e-8)return null;
+  // Allocate in whole percent increments so totals are exact and displayed weights
+  // correspond to the constraints actually checked.
+  const order=picked.map((f,i)=>({f,i,cost:riskCost(f),variety:(iteration*31+i*17)%19}));
+  order.sort((a,b)=>a.cost-b.cost||(b.f.score-a.f.score)+0.001*(a.variety-b.variety));
+  let remaining=100-minWeight*n;
+  for(const x of order){
+   if(remaining===0)break;
+   let budget=Math.min(maxWeight-minWeight,remaining);
+   const f=x.f;
+   if(f.exposure.equity>0)budget=Math.min(budget,Math.floor(Math.max(0,(c.eq-eq)*100/f.exposure.equity)+1e-8));
+   if(f.exposure.fx>0)budget=Math.min(budget,Math.floor(Math.max(0,(c.fx-fx)*100/f.exposure.fx)+1e-8));
+   if(budget<1)continue;
+   w[x.i]+=budget;eq+=f.exposure.equity*budget/100;fx+=f.exposure.fx*budget/100;remaining-=budget;
+  }
+  if(remaining!==0||eq>c.eq+1e-7||fx>c.fx+1e-7)return null;
+  return{weights:w,eq,fx};
+ }
  const plans=[];
- const choose=(iteration)=>{
-  let picked=[],used=new Set(),eq=0,fx=0;
-  const add=f=>{picked.push(f);used.add(f.number);eq+=f.exposure.equity/c.n;fx+=f.exposure.fx/c.n;};
-  const fits=f=>!used.has(f.number)&&eq+f.exposure.equity/c.n<=c.eq+1e-8&&fx+f.exposure.fx/c.n<=c.fx+1e-8;
+ function choose(iteration){
+  const picked=[],used=new Set();
+  const add=f=>{picked.push(f);used.add(f.number);};
   const utility=f=>{
    const sameManager=picked.filter(x=>x.manager===f.manager).length;
    const sameGroup=picked.filter(x=>x.groupKey===f.groupKey).length;
-   const concentration=picked.filter(x=>x.asset===f.asset).length;
-   const variance=((f.number.split("").reduce((s,v)=>s+Number(v),0)*17+iteration*31)%47)/47;
-   return f.score-.2*f.fee-12*sameManager-10*sameGroup-3*concentration
-     -(.04+iteration%6*.018)*(f.exposure.equity+f.exposure.fx)+variance*(iteration%9)*.7;
+   const sameAsset=picked.filter(x=>x.asset===f.asset).length;
+   const noise=((f.number.split("").reduce((t,v)=>t+Number(v),0)*31+iteration*19)%53)/53;
+   const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
+   return f.score*.45-riskWeight*riskCost(f)*12-7*sameManager-6*sameGroup-3*sameAsset+noise*(iteration%9)*1.5;
   };
   const required=[...c.requested].sort((a,b)=>(perAsset.get(a)?.length||0)-(perAsset.get(b)?.length||0));
   for(const asset of required){
-   const options=perAsset.get(asset).filter(fits).sort((a,b)=>utility(b)-utility(a));
-   if(!options.length)return null;add(options[0]);
+   const candidate=perAsset.get(asset).filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
+   if(!candidate)return null;
+   add(candidate);
   }
   while(picked.length<c.n){
-   const options=viable.filter(fits).sort((a,b)=>utility(b)-utility(a));
-   if(!options.length)return null;add(options[0]);
+   const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
+   if(!candidate)return null;
+   add(candidate);
   }
-  const assets=new Set(picked.map(f=>f.asset)).size,managers=new Set(picked.map(f=>f.manager)).size;
-  return{picked,eq,fx,quality:picked.reduce((t,f)=>t+f.score,0)/c.n+assets*1.8+managers*1.2};
- };
- for(let i=0;i<70;i++){const plan=choose(i);if(plan)plans.push(plan);}
- if(!plans.length)throw Error("לא נמצא הרכב העומד בכל המגבלות ובמספר הקרנות שביקשת. נסה להפחית את מספר הקרנות או לשנות את האפיקים/תקרות החשיפה. המערכת לא תחרוג מהמגבלות.");
- plans.sort((a,b)=>b.quality-a.quality);return plans[0];
+  const allocated=allocate(picked,iteration);
+  if(!allocated)return null;
+  const {weights,eq,fx}=allocated;
+  const quality=picked.reduce((t,f,i)=>t+f.score*weights[i]/100,0)+new Set(picked.map(f=>f.asset)).size*1.6
+       +new Set(picked.map(f=>f.manager)).size*1.0;
+  return{picked,weights,eq,fx,quality};
+ }
+ for(let i=0;i<160;i++){const plan=choose(i);if(plan)plans.push(plan);}
+ if(!plans.length)throw Error("לא נמצא תיק מאומת עם "+c.n+" קרנות ואפיקי החובה שנבחרו, גם לאחר בדיקת משקלים משתנים (5% עד 40% לקרן). אפשר להרחיב את מספר האפיקים, להפחית קרנות או לשנות מגבלות. לא בוצעה חריגה מהמגבלות.");
+ plans.sort((a,b)=>b.quality-a.quality);
+ return plans[0];
 }
 function showError(text){$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";}
 function renderPortfolio(plan,c){
- const {picked,eq,fx}=plan,asof=new Date(snapshot.generatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",dateStyle:"short",timeStyle:"short"});
+ const {picked,weights,eq,fx}=plan,asof=new Date(snapshot.generatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",dateStyle:"short",timeStyle:"short"});
  $("message").className="good";
  $("message").textContent="נמצא הרכב מחקרי של "+picked.length+" קרנות העומד בתקרות החשיפה שהוגדרו, לפי פרופיל החשיפה המרבי של כל קרן. נתוני מאיה: "+asof+".";
  const fmt=n=>Number.isFinite(n)?n.toFixed(2)+"%":"לא פורסם";
- const lines=picked.map(f=>({name:f.name,number:f.number,weight:100/c.n,asset:f.asset,ret:f.ret,fee:f.fee,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager}));
+ const lines=picked.map(f=>({name:f.name,number:f.number,weight:weights[picked.indexOf(f)],asset:f.asset,ret:f.ret,fee:f.fee,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager}));
  const html='<div class="summary">'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+c.n+'</strong></div>'
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
-  +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((s,f)=>s+f.fee,0)/c.n)+'</strong></div></div>'
-  +'<p class="note">משקל כל קרן: '+fmt(100/c.n)+'. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
+  +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
+  +'<p class="note">המשקלים מותאמים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
