@@ -14,8 +14,13 @@ footer{font-size:12px;line-height:1.7;color:#576b83;margin-top:20px}
 @media(max-width:750px){.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.categories{grid-template-columns:1fr 1fr}.summary{grid-template-columns:1fr 1fr}}
 @media(max-width:450px){.form-grid{grid-template-columns:1fr 1fr}.categories{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}}
 @media print{header,.actions,.config{display:none!important}body{background:#fff}.panel{border:0;box-shadow:none}table{font-size:11px}}
+
+body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{display:none}
+#agent-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f4f6fa}
+#agent-login .login-panel{background:white;border:1px solid #dfe5ee;border-radius:15px;padding:28px;width:100%;max-width:380px;box-shadow:0 8px 30px #102f5618}
+#agent-login h1{font-size:23px;margin:0 0 14px}#agent-login p{line-height:1.6}#agent-login button{width:100%;margin-top:14px}
 </style></head>
-<body><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
+<body class="locked"><div id="agent-login"><form class="login-panel" id="agent-login-form"><h1>כניסה לסוכן בניית התיקים</h1><p class="note">יש להזין קוד גישה כדי לפתוח את הסוכן.</p><label for="agent-pin">קוד גישה</label><input id="agent-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" required aria-describedby="agent-login-error"><button type="submit">כניסה</button><p id="agent-login-error" class="error" role="alert" hidden></p></form></div><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
 <main>
 <section class="panel config"><h2>הגדרות התיק</h2>
 <div class="form-grid">
@@ -61,12 +66,12 @@ const categoryNames={money:"קרנות כספיות",gov:"אג״ח מדינה ב
 const typeNames=Object.keys(categoryNames);
 let catalog=[],performance={},snapshot=null;
 function classify(f){
- const v=f.category||"";
+ const v=String(f.category||"").replace(/[״“”]/g,'"').trim();
  if(v==="קרן כספית")return"money";
- if(v==="אג״ח בארץ - מדינה")return"gov";
- if(v==="אג״ח בארץ - חברות והמרה")return"corp";
- if(v==="אג״ח בארץ - כללי"||v==="אג״ח בארץ משולבת")return"localbond";
- if(v==="אג״ח בחו״ל")return"foreignbond";
+ if(v==='אג"ח בארץ - מדינה')return"gov";
+ if(v==='אג"ח בארץ - חברות והמרה')return"corp";
+ if(v==='אג"ח בארץ - כללי'||v==='אג"ח בארץ משולבת')return"localbond";
+ if(v==='אג"ח בחו"ל')return"foreignbond";
  if(v==="מניות בארץ")return"israelequity";
  if(v==='מניות בחו"ל')return"foreignequity";
  return null;
@@ -209,7 +214,7 @@ function adjustRisk(){
 $("risk").addEventListener("change",adjustRisk);
 $("reset").addEventListener("click",()=>{$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
-(async()=>{
+async function initializeAgent(){
  try{
   adjustRisk();
   const v=Date.now();
@@ -222,5 +227,20 @@ $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfoli
   $("build").disabled=false;$("build").textContent="בנה תיק קרנות";
   $("message").textContent="הנתונים נטענו ואומתו: "+catalog.length.toLocaleString("he-IL")+" קרנות ממאיה. הגדר את הפרמטרים ולחץ ״בנה תיק״.";
  }catch(e){showError("טעינת הנתונים נכשלה: "+e.message);}
-})();
+}
+$("agent-login-form").addEventListener("submit",event=>{
+ event.preventDefault();
+ const pin=$("agent-pin").value;
+ if(pin!=="0010"){
+  $("agent-login-error").hidden=false;
+  $("agent-login-error").textContent="קוד הגישה שגוי.";
+  $("agent-pin").value="";
+  $("agent-pin").focus();
+  return;
+ }
+ $("agent-pin").value="";
+ $("agent-login-error").hidden=true;
+ document.body.classList.remove("locked");
+ initializeAgent();
+});
 </script></body></html>
