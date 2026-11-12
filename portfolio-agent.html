@@ -24,6 +24,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <main>
 <section class="panel config"><h2>הגדרות התיק</h2>
 <div class="form-grid">
+<label>סכום התיק (₪)<input id="amount" type="number" min="1" max="1000000000000" step="1" placeholder="לדוגמה 100000" required></label>
 <label>מספר קרנות בתיק<input id="count" type="number" min="2" max="20" step="1" value="6"></label>
 <label>רמת סיכון<select id="risk"><option value="1">1 · נמוכה מאוד</option><option value="2">2 · נמוכה</option><option value="3" selected>3 · בינונית</option><option value="4">4 · גבוהה</option><option value="5">5 · גבוהה מאוד</option></select></label>
 <label>תקרת חשיפה למניות (%)<input id="equity" type="number" min="0" max="100" value="30" step="1"></label>
@@ -106,13 +107,14 @@ function rankCandidates(funds){
  return funds;
 }
 function config(){
- const n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
+ const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
+ if($("amount").value.trim()===""||!Number.isSafeInteger(amount)||amount<1||amount>1000000000000)throw Error("יש להזין סכום תיק שלם וחיובי בשקלים.");
  if(!Number.isInteger(n)||n<2||n>20)throw Error("מספר הקרנות חייב להיות בין 2 ל־20.");
  if(!Number.isFinite(eq)||eq<0||eq>100||!Number.isFinite(fx)||fx<0||fx>100||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.length>n)throw Error("מספר האפיקים הנדרשים גדול ממספר הקרנות שהוגדר.");
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
+ return {amount,n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -192,15 +194,22 @@ function renderPortfolio(plan,c){
  $("message").className="good";
  $("message").textContent="נמצא הרכב מחקרי של "+picked.length+" קרנות העומד בתקרות החשיפה שהוגדרו, לפי פרופיל החשיפה המרבי של כל קרן. נתוני מאיה: "+asof+".";
  const fmt=n=>Number.isFinite(n)?n.toFixed(2)+"%":"לא פורסם";
- const lines=picked.map(f=>({name:f.name,number:f.number,weight:weights[picked.indexOf(f)],asset:f.asset,ret:f.ret,fee:f.fee,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager}));
+ const currency=n=>new Intl.NumberFormat("he-IL",{style:"currency",currency:"ILS",maximumFractionDigits:0}).format(n);
+ let allocatedAmount=0;
+ const lines=picked.map((f,i)=>{
+  const allocation=i===picked.length-1?c.amount-allocatedAmount:Math.round(c.amount*weights[i]/100);
+  allocatedAmount+=allocation;
+  return{name:f.name,number:f.number,weight:weights[i],allocation,asset:f.asset,ret:f.ret,fee:f.fee,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager};
+ });
  const html='<div class="summary">'
+  + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+c.n+'</strong></div>'
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<p class="note">המשקלים מותאמים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
-  +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
-  +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
+  +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
+  +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
   +'<p class="warning">לא נבדקו דירוגי אשראי, מח״מ, מחירי שוק בזמן אמת, מתאמים, נכסי בסיס חופפים או סטיית תקן. האפיקים זוהו מסיווג מאיה בלבד. זהו כלי לבניית הרכב ראשוני לבדיקה מקצועית ולא תיק המומלץ ללקוח.</p>';
  $("portfolio").innerHTML=html;
@@ -212,7 +221,7 @@ function adjustRisk(){
  for(const el of document.querySelectorAll("#categories input")){el.disabled=!r.allowed.includes(el.value);if(el.disabled)el.checked=false;}
 }
 $("risk").addEventListener("change",adjustRisk);
-$("reset").addEventListener("click",()=>{$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
+$("reset").addEventListener("click",()=>{$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
 async function initializeAgent(){
  try{
