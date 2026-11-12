@@ -56,10 +56,10 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 const $=id=>document.getElementById(id),esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const riskLevels={
  1:{name:"נמוכה מאוד",eq:0,fx:10,allowed:["money","gov"]},
- 2:{name:"נמוכה",eq:10,fx:20,allowed:["money","gov","corp","localbond","foreignbond"]},
- 3:{name:"בינונית",eq:30,fx:35,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
- 4:{name:"גבוהה",eq:50,fx:60,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
- 5:{name:"גבוהה מאוד",eq:80,fx:90,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]}
+ 2:{name:"נמוכה",eq:20,fx:20,allowed:["money","gov","corp","localbond","foreignbond"]},
+ 3:{name:"בינונית",eq:35,fx:35,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
+ 4:{name:"גבוהה",eq:75,fx:60,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
+ 5:{name:"גבוהה מאוד",eq:100,fx:100,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]}
 };
 const eqProfile={"0":0,"1":10,"2":30,"3":50,"4":120,"5":200};
 const fxProfile={"0":0,A:10,B:30,C:50,D:120,E:200};
@@ -110,11 +110,11 @@ function config(){
  const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
  if($("amount").value.trim()===""||!Number.isSafeInteger(amount)||amount<1||amount>1000000000000)throw Error("יש להזין סכום תיק שלם וחיובי בשקלים.");
  if(!Number.isInteger(n)||n<2||n>20)throw Error("מספר הקרנות חייב להיות בין 2 ל־20.");
- if(!Number.isFinite(eq)||eq<0||eq>100||!Number.isFinite(fx)||fx<0||fx>100||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
+ if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.length>n)throw Error("מספר האפיקים הנדרשים גדול ממספר הקרנות שהוגדר.");
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
+ return {amount,n,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -224,11 +224,26 @@ function renderPortfolio(plan,c){
 }
 function adjustRisk(){
  const r=riskLevels[Number($("risk").value)];
- $("equity").value=r.eq;$("fx").value=r.fx;
+ for(const [id,limit] of [["equity",r.eq],["fx",r.fx]]){
+  $(id).max=String(limit);
+  $(id).value=String(limit);
+  $(id).disabled=limit===0;
+ }
  $("riskExplanation").textContent="רמה "+$("risk").value+" · "+r.name+": מגבלות ברירת המחדל הן מניות עד "+r.eq+"% ומט״ח עד "+r.fx+"%. אפשר להחמיר את המגבלות; ערך גבוה יותר אינו עוקף את גבולות רמת הסיכון. דירוג זה אינו מודד סיכוני אשראי, מח״מ או תנודתיות.";
  for(const el of document.querySelectorAll("#categories input")){el.disabled=!r.allowed.includes(el.value);if(el.disabled)el.checked=false;}
 }
 $("risk").addEventListener("change",adjustRisk);
+for(const id of ["equity","fx"]){
+ const capValue=()=>riskLevels[Number($("risk").value)][id==="equity"?"eq":"fx"];
+ const clamp=()=>{
+  const el=$(id);
+  if(el.value==="")return;
+  const val=Number(el.value);
+  if(Number.isFinite(val))el.value=String(Math.max(0,Math.min(capValue(),val)));
+ };
+ $(id).addEventListener("input",clamp);
+ $(id).addEventListener("change",clamp);
+}
 $("reset").addEventListener("click",()=>{$("amount").value="";$("count").value=6;$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
 async function initializeAgent(){
