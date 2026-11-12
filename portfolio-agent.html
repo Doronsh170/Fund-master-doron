@@ -219,7 +219,7 @@ function renderPortfolio(plan,c){
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
-  +'<p class="warning">לא נבדקו דירוגי אשראי, מח״מ, מחירי שוק בזמן אמת, מתאמים, נכסי בסיס חופפים או סטיית תקן. האפיקים זוהו מסיווג מאיה בלבד. זהו כלי לבניית הרכב ראשוני לבדיקה מקצועית ולא תיק המומלץ ללקוח.</p>';
+  +'<p class="warning">גילוי נאות: התיק נבנה באמצעות מודל ממוחשב על בסיס נתונים פומביים וקריטריונים כמותיים. המידע מיועד למחקר ולהמחשה בלבד ואינו מהווה ייעוץ השקעות, שיווק השקעות או המלצה לפעולה. המודל אינו בוחן התאמה אישית לצורכי המשקיע. השקעה כרוכה בסיכון, תשואות עבר אינן מעידות על תשואות עתידיות.</p>';
  $("portfolio").innerHTML=html;
 }
 function adjustRisk(){
