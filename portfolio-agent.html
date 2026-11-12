@@ -144,7 +144,7 @@ function config(){
  if(!Number.isFinite(eq)||eq<0||eq>risk.eq||!Number.isFinite(fx)||fx<0||fx>risk.fx||$("equity").value===""||$("fx").value==="")throw Error("יש להגדיר תקרות מניות ומט״ח בין 0% ל־100%.");
  const requested=[...document.querySelectorAll("#categories input:checked")].map(el=>el.value);
  if(requested.some(a=>!risk.allowed.includes(a)))throw Error("נבחר אפיק שאינו מותר ברמת הסיכון שנבחרה. שנה את רמת הסיכון או הסר את האפיק.");
- return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
+ return {amount,n,countMode:$("countMode").value,level,risk,eq,fx,targetEq:Math.max(0,eq-10),requested,allowed:requested.length?requested:risk.allowed,advisor:advisor()};
 }
 function buildPortfolio(c){
  // The peer score is computed using the complete MAYA universe, before user restrictions.
@@ -156,7 +156,7 @@ function buildPortfolio(c){
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  if(viable.length<Math.min(c.n,3))throw Error("אין מספיק קרנות כשירות לבניית תיק במסגרת המגבלות.");
  const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
- const riskCost=f=>f.exposure.equity/(c.eq||1)+f.exposure.fx/(c.fx||1);
+ const riskCost=f=>f.exposure.fx/(c.fx||1);
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
  // The score is a relative ranking within comparable funds, not an estimate of return.
  function allocate(picked,iteration){
@@ -211,7 +211,8 @@ function buildPortfolio(c){
    const noise=((f.number.split("").reduce((t,v)=>t+Number(v),0)*31+iteration*19)%53)/53;
    const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
    const dispersion=c.advisor.diversify==="wide"?2.8:c.advisor.diversify==="focus"?.05:1;
-   return f.adjustedScore*.45-riskWeight*riskCost(f)*12-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
+   const projectedEq=(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)/(picked.length+1);
+   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-0.33*Math.abs(projectedEq-c.targetEq)-dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
@@ -230,7 +231,7 @@ function buildPortfolio(c){
   const concentrationPreference=c.advisor.diversify==="wide"?-50*concentration:c.advisor.diversify==="focus"?10*concentration:0;
   const quality=picked.reduce((t,f,i)=>t+f.adjustedScore*weights[i]/100,0)
    +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size)
-   +bondAlignment+concentrationPreference;
+   +bondAlignment+concentrationPreference-3*Math.abs(eq-c.targetEq);
   return{picked,weights,eq,fx,quality};
  }
  const counts=c.countMode==="flex"
@@ -264,7 +265,7 @@ function renderPortfolio(plan,c){
  const html='<div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
-  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>מגבלה '+c.eq+'%</small></div>'
+  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>יעד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
