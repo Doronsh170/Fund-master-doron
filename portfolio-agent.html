@@ -110,10 +110,12 @@ function config(){
  return {n,level,risk,eq:Math.min(eq,risk.eq),fx:Math.min(fx,risk.fx),requested,allowed:requested.length?requested:risk.allowed};
 }
 function buildPortfolio(c){
- const prepared=rankCandidates(catalog.map(enrich).filter(f=>f.asset&&c.allowed.includes(f.asset)&&f.exposure&&f.score!==null
-  &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)
-  &&f.exposure.equity<=200&&f.exposure.fx<=200));
- const viable=prepared.filter(f=>f.exposure.equity/c.n<=c.eq+1e-8&&f.exposure.fx/c.n<=c.fx+1e-8);
+ // Rank before filtering on score. The official MAYA peer group is calculated
+ // across the whole eligible universe, independently of the user's allocation limits.
+ const universe=rankCandidates(catalog.map(enrich).filter(f=>f.asset&&f.exposure&&f.exposure.equity<=200&&f.exposure.fx<=200
+  &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)));
+ const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null&&
+  f.exposure.equity/c.n<=c.eq+1e-8&&f.exposure.fx/c.n<=c.fx+1e-8);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  const missing=c.requested.filter(a=>!perAsset.get(a)?.length);
  if(missing.length)throw Error("לא נמצאו קרנות עם תשואה ופרופיל חשיפה מאומתים באפיקים: "+missing.map(a=>categoryNames[a]).join(", ")+". לא הוסרו אפיקים ללא אישורך.");
