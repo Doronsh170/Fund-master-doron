@@ -148,10 +148,21 @@ function equityRegion(f){
  &&!/WORLD|GLOBAL|ACWI|MSCI EM|עולם|גלובל|אירופה|יפן|סין|הודו/i.test(n))return"US";
  return null;
 }
+function latestReportedExposure(p,kind){
+ // Only structured, verified exposure observations. A profile is never an actual reading.
+ const observations=p?.sourceSnapshot?.reportedExposures;
+ if(!Array.isArray(observations))return null;
+ const valid=observations.filter(x=>x&&x.asset===kind&&Number.isFinite(x.percent)
+  &&/^\d{4}-\d{2}-\d{2}$/.test(x.asOf||"")
+  &&["actual","period_average"].includes(x.measurementType)
+  &&typeof x.sourceUrl==="string"&&/^https:\/\//.test(x.sourceUrl));
+ valid.sort((a,b)=>b.asOf.localeCompare(a.asOf));
+ return valid[0]||null;
+}
 function enrich(f){
  const p=performance[f.number],v=p?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
  const sd=p?.sourceSnapshot?.yields?.standardDeviation;
- return{...f,asset:classify(f),exposure:exposure(f),indexKey:trackedIndex(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null,stdDev:p?.status==="available"&&Number.isFinite(sd)&&sd>=0?sd:null};
+ return{...f,reported:{equity:latestReportedExposure(p,"equity"),bond:latestReportedExposure(p,"bond"),fx:latestReportedExposure(p,"fx")},asset:classify(f),exposure:exposure(f),indexKey:trackedIndex(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null,stdDev:p?.status==="available"&&Number.isFinite(sd)&&sd>=0?sd:null};
 }
 function rankCandidates(funds){
  const groups=new Map();
