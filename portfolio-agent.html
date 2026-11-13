@@ -139,6 +139,15 @@ function equityBucket(f){
  // A sector and a niche must be identifiable, so unknown equity funds are not silently labelled core.
  return null;
 }
+function equityRegion(f){
+ if(f.asset==="israelequity")return"IL";
+ if(f.asset!=="foreignequity")return null;
+ const n=String(f.name||"").toUpperCase();
+ if(f.indexKey&&["SP500","NASDAQ100","NASDAQCOMPOSITE","RUSSELL2000"].includes(f.indexKey))return"US";
+ if(/ארה.?ב|ארצות הברית|USA|UNITED STATES|NASDAQ|RUSSELL|SP500|S&P.?500/i.test(n)
+ &&!/WORLD|GLOBAL|ACWI|MSCI EM|עולם|גלובל|אירופה|יפן|סין|הודו/i.test(n))return"US";
+ return null;
+}
 function enrich(f){
  const p=performance[f.number],v=p?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
  const sd=p?.sourceSnapshot?.yields?.standardDeviation;
@@ -182,8 +191,8 @@ function buildPortfolio(c){
  const universe=rankCandidates(catalog.map(enrich).filter(f=>f.asset&&f.exposure&&f.exposure.equity<=200&&f.exposure.fx<=200
   &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)));
  // Missing ranking data must not silently become a fabricated score.
- const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null);
- for(const f of viable)f.equityBucket=equityBucket(f);
+ const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null&&(!["israelequity","foreignequity"].includes(f.asset)||equityRegion(f)));
+ for(const f of viable){f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);}
  for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  if(viable.length<Math.min(c.n,3))throw Error("אין מספיק קרנות כשירות לבניית תיק במסגרת המגבלות.");
