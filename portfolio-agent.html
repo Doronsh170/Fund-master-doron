@@ -188,7 +188,7 @@ function buildPortfolio(c){
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  if(viable.length<Math.min(c.n,3))throw Error("אין מספיק קרנות כשירות לבניית תיק במסגרת המגבלות.");
  const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
- const sleeveTargets={core:.60,sector:.30,niche:.10};
+ const sleeveTargets=c.eq>=50?{core:.60,sector:.30,niche:.10}:{core:1,sector:0,niche:0};
  const riskCost=f=>f.exposure.fx/(c.fx||1);
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
  // The score is a relative ranking within comparable funds, not an estimate of return.
@@ -283,7 +283,8 @@ function buildPortfolio(c){
    const dispersion=c.advisor.diversify==="wide"?2.8:c.advisor.diversify==="focus"?.05:1;
    const projectedEq=(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)/(picked.length+1);
    const riskFitPenalty=(.6+(iteration%4)*.2)*Math.abs(projectedEq-c.targetEq);
-   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty
+   const coreBonus=c.eq<50?(f.equityBucket==="core"?14:f.equityBucket?-10:0):0;
+   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty+coreBonus
      -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   while(picked.length<targetCount){
