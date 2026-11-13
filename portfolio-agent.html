@@ -379,13 +379,24 @@ function renderPortfolio(plan,c){
  const lines=picked.map((f,i)=>{
   const allocation=i===picked.length-1?c.amount-allocatedAmount:Math.round(c.amount*weights[i]/100);
   allocatedAmount+=allocation;
-  return{name:f.name,number:f.number,weight:weights[i],allocation,asset:f.asset,ret:f.ret,fee:f.fee,stdDev:f.stdDev,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager};
+  return{name:f.name,number:f.number,weight:weights[i],allocation,asset:f.asset,ret:f.ret,fee:f.fee,stdDev:f.stdDev,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager,reported:f.reported};
  });
+ const exposureText=(reading,cap)=>reading
+  ?fmt(reading.percent)+" · "+(reading.measurementType==="actual"?"בפועל":"ממוצע תקופתי")+" · "+reading.asOf
+  :(Number.isFinite(cap)?"אין נתון בפועל (תקרה "+fmt(cap)+")":"אין נתון מאומת");
+ const reportedPortfolio=kind=>{
+  if(!picked.length||picked.some(f=>!f.reported?.[kind]))return null;
+  return picked.reduce((v,f,i)=>v+weights[i]*f.reported[kind].percent/100,0);
+ };
+ const actualEq=reportedPortfolio("equity"),actualFx=reportedPortfolio("fx"),actualBond=reportedPortfolio("bond");
  const html='<div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
+  +'<div class="metric"><small>מניות, נתון מדווח</small><strong>'+fmt(actualEq)+'</strong><small>'+(actualEq===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
+  +'<div class="metric"><small>מט״ח, נתון מדווח</small><strong>'+fmt(actualFx)+'</strong><small>'+(actualFx===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
+  +'<div class="metric"><small>אג״ח, נתון מדווח</small><strong>'+fmt(actualBond)+'</strong><small>'+(actualBond===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<p class="note">חלוקת קרנות הרכיב המנייתי לפי משקל קרנות מנייתיות בתיק: מדדים מובילים '+fmt(plan.sleeve?.total?plan.sleeve.by.core/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?60:100)+'%), סקטורים '+fmt(plan.sleeve?.total?plan.sleeve.by.sector/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?30:0)+'%), נישות '+fmt(plan.sleeve?.total?plan.sleeve.by.niche/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?10:0)+'%). הסיווג לפי שם הקרן והמדד המזוהה, ואינו מדידת החזקות בפועל.</p>'
   +'<p class="note">פיזור גיאוגרפי של רכיב הקרנות המנייתיות: ארה״ב '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.US/plan.sleeve.regionTotal:0)+' (יעד 60%), ישראל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.IL/plan.sleeve.regionTotal:0)+' (יעד 40%). הזיהוי מבוסס על שם הקרן וסיווגה, ולא על פירוט אחזקות. סטייה של עד 5 נקודות אחוז מותרת עקב משקולות הקרנות.</p>'
