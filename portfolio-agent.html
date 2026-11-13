@@ -110,10 +110,28 @@ function percentile(value,values,lowerBetter){
  const ties=values.filter(n=>n===value).length;
  return 100*(below+(ties-1)/2)/(values.length-1);
 }
+function trackedIndex(f){
+ if(f.type!=="קרן סל"&&f.type!=="קרן מחקה")return null;
+ const name=String(f.name||"").toUpperCase();
+ if(/EQUAL.?WEIGHT|\bEW\b|MOMENTUM|VALUE|QUALITY|DIVIDEND|ESG|FACTOR|מומנטום|משקל שווה|משולב|ממונפ|\/|[+]/i.test(name))return null;
+ const indices=[
+  ["SP500",/(?:S\s*&\s*P|SP)\s*500|אס אנד פי\s*500/i],
+  ["NASDAQ100",/NASDAQ\s*100|נאסדק\s*100/i],
+  ["NASDAQCOMPOSITE",/NASDAQ\s*COMPOSITE/i],
+  ["TA35",/(?:ת["״']?א|תל אביב|TA)\s*35(?!\d)/i],
+  ["TA90",/(?:ת["״']?א|תל אביב|TA)\s*90(?!\d)/i],
+  ["TA125",/(?:ת["״']?א|תל אביב|TA)\s*125(?!\d)/i],
+  ["RUSSELL2000",/RUSSELL\s*2000|ראסל\s*2000/i],
+  ["MSCIWORLD",/MSCI\s*WORLD\b/i],
+  ["MSCIEM",/MSCI\s*(?:EM|EMERGING MARKETS)\b/i]
+ ];
+ const matched=indices.filter(x=>x[1].test(name));
+ return matched.length===1?matched[0][0]:null;
+}
 function enrich(f){
  const p=performance[f.number],v=p?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
  const sd=p?.sourceSnapshot?.yields?.standardDeviation;
- return{...f,asset:classify(f),exposure:exposure(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null,stdDev:p?.status==="available"&&Number.isFinite(sd)&&sd>=0?sd:null};
+ return{...f,asset:classify(f),exposure:exposure(f),indexKey:trackedIndex(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null,stdDev:p?.status==="available"&&Number.isFinite(sd)&&sd>=0?sd:null};
 }
 function rankCandidates(funds){
  const groups=new Map();
@@ -223,7 +241,7 @@ function buildPortfolio(c){
      -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   while(picked.length<targetCount){
-   const candidate=viable.filter(f=>!used.has(f.number)).sort((a,b)=>utility(b)-utility(a))[0];
+   const candidate=viable.filter(f=>!used.has(f.number)&&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey))).sort((a,b)=>utility(b)-utility(a))[0];
    if(!candidate)return null;
    add(candidate);
   }
