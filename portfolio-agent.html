@@ -112,18 +112,20 @@ function percentile(value,values,lowerBetter){
 }
 function enrich(f){
  const p=performance[f.number],v=p?.rows?.find(x=>x.period==="12 חודשים*")?.fund;
- return{...f,asset:classify(f),exposure:exposure(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null};
+ const sd=p?.sourceSnapshot?.yields?.standardDeviation;
+ return{...f,asset:classify(f),exposure:exposure(f),ret:Number.isFinite(v)&&p?.status==="available"?v:null,stdDev:p?.status==="available"&&Number.isFinite(sd)&&sd>=0?sd:null};
 }
 function rankCandidates(funds){
  const groups=new Map();
  for(const f of funds){const key=[f.category,f.searchTerms?.[1]||"",f.type].join("|");f.groupKey=key;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(f);}
  for(const group of groups.values()){
-  const eligible=group.filter(f=>f.ret!==null&&Number.isFinite(f.fee));
-  const returns=eligible.map(x=>x.ret),fees=eligible.map(x=>x.fee);
+  const eligible=group.filter(f=>f.ret!==null&&Number.isFinite(f.fee)&&f.stdDev!==null);
+  const returns=eligible.map(x=>x.ret),fees=eligible.map(x=>x.fee),deviations=eligible.map(x=>x.stdDev);
   for(const f of group){
-   f.returnRank=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)?percentile(f.ret,returns,false):null;
+   f.returnRank=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)&&f.stdDev!==null?percentile(f.ret,returns,false):null;
    f.feeRank=f.returnRank===null?null:percentile(f.fee,fees,true);
-   f.score=f.returnRank===null?null:.7*f.returnRank+.3*f.feeRank;
+   f.volRank=f.returnRank===null?null:percentile(f.stdDev,deviations,true);
+   f.score=f.returnRank===null?null:.49*f.returnRank+.21*f.feeRank+.30*f.volRank;
   }
  }
  return funds;
@@ -135,7 +137,7 @@ function preferenceScore(f,p){
  let bonus=p.style==="passive"?(passive?9:-9):p.style==="active"?(passive?-9:9):0;
  if(f.asset==="gov")bonus+=p.bond==="gov"?24:p.bond==="corp"?-24:0;
  if(f.asset==="corp")bonus+=p.bond==="corp"?24:p.bond==="gov"?-24:0;
- return mix[0]*f.returnRank+mix[1]*f.feeRank+bonus;
+ return .70*(mix[0]*f.returnRank+mix[1]*f.feeRank)+.30*f.volRank+bonus;
 }
 function config(){
  const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
