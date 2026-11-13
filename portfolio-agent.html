@@ -135,7 +135,7 @@ function equityBucket(f){
  const name=String(f.name||"").toUpperCase(),category=String(f.searchTerms?.join(" ")||"").toUpperCase();
  if(/סייבר|CYBER|ביוטק|BIOTECH|רובוט|ROBOT|QUANTUM|קוונט|חלל|SPACE|URANIUM|אורניום|NUCLEAR|גרעין|SEMICONDUCT|שבבים|בינה מלאכותית|ARTIFICIAL INTELLIGENCE|ביטחוני|DEFENSE|DEFENCE|גיימינג|GAMING|בלוקצ|BLOCKCHAIN|קנאביס/i.test(name))return"niche";
  if(/טכנולוג|TECHNOLOGY|TECH\b|בריאות|HEALTH|פיננס|FINANC|בנקים|BANK|אנרג|ENERGY|נדל|REAL ESTATE|תשתיות|INFRASTRUCTURE|תעשיי|INDUSTRIAL|צריכה|CONSUMER|COMMUNICATION|תקשורת|UTILITIES|חומרי גלם|MATERIALS/i.test(name))return"sector";
- if(f.indexKey||/מניות (?:ישראל|ארה"ב|חו"ל|עולם|גלובל|כללי)|מניות בארץ|מניות בחו"ל|GLOBAL EQUITY|WORLD EQUITY|ALL COUNTRY/i.test(name))return"core";
+ if(f.indexKey&&["SP500","NASDAQ100","NASDAQCOMPOSITE","TA35","TA90","TA125","RUSSELL2000","MSCIWORLD","MSCIEM"].includes(f.indexKey))return"core";
  // A sector and a niche must be identifiable, so unknown equity funds are not silently labelled core.
  return null;
 }
