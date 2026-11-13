@@ -1,1 +1,1 @@
-Official MAYA complete fund list, metadata and yield refresh requested, 2026-11-12. Retry after fixing concurrent index.html merge conflicts; verify publication. Preserve existing fund finder and ranking UI.
+2026-11-13: Refresh ALL official MAYA mutual fund returns and source dates now. Validate exact reported values, fund coverage, catalog consistency, and publish GitHub Pages. Preserve search, fund rankings, and portfolio-agent behavior. Requested by repository owner.
