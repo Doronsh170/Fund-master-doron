@@ -77,7 +77,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 const $=id=>document.getElementById(id),esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const riskLevels={
  1:{name:"נמוכה מאוד",eq:0,fx:10,allowed:["money","gov"]},
- 2:{name:"נמוכה",eq:20,fx:20,allowed:["money","gov","corp","localbond","foreignbond"]},
+ 2:{name:"נמוכה",eq:20,fx:20,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
  3:{name:"בינונית",eq:35,fx:35,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
  4:{name:"גבוהה",eq:75,fx:60,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]},
  5:{name:"גבוהה מאוד",eq:100,fx:100,allowed:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"]}
