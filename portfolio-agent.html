@@ -266,7 +266,7 @@ function buildPortfolio(c){
    }
    const result=sleeveInfo();
    // Max five percentage points deviation for each bucket when 1% weights allow it.
-   if(result.total===0||Object.keys(sleeveTargets).some(k=>Math.abs(result.by[k]/result.total-sleeveTargets[k])>.05+1e-8))return null;
+   // A preferred equity split must not invalidate a risk-compliant portfolio.
   }
   return{weights:w,eq,fx,sleeve:sleeveInfo()};
  }
@@ -286,16 +286,6 @@ function buildPortfolio(c){
    return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty
      -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
-  // Ensure the three defined equity sleeves are represented before free selection.
-  if(c.targetEq>0){
-   for(const bucket of ["core","sector","niche"]){
-    const candidate=viable.filter(f=>!used.has(f.number)&&f.equityBucket===bucket
-     &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey)))
-     .sort((a,b)=>utility(b)-utility(a))[0];
-    if(!candidate)return null;
-    add(candidate);
-   }
-  }
   while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)
     &&(!["israelequity","foreignequity"].includes(f.asset)||f.equityBucket)
@@ -316,7 +306,7 @@ function buildPortfolio(c){
   const concentrationPreference=c.advisor.diversify==="wide"?-50*concentration:c.advisor.diversify==="focus"?10*concentration:0;
   const quality=picked.reduce((t,f,i)=>t+f.adjustedScore*weights[i]/100,0)
    +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size)
-   +bondAlignment+concentrationPreference-3*Math.abs(eq-c.targetEq);
+   +bondAlignment+concentrationPreference-3*Math.abs(eq-c.targetEq)-(sleeve.total?10*sleeve.mismatch:0);
   return{picked,weights,eq,fx,sleeve,quality};
  }
  const counts=c.countMode==="flex"
