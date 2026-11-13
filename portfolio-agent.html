@@ -34,6 +34,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 #agent-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f4f6fa}
 #agent-login .login-panel{background:white;border:1px solid #dfe5ee;border-radius:15px;padding:28px;width:100%;max-width:380px;box-shadow:0 8px 30px #102f5618}
 #agent-login h1{font-size:23px;margin:0 0 14px}#agent-login p{line-height:1.6}#agent-login button{width:100%;margin-top:14px}
+.exposure-info{position:relative;display:inline-block;max-width:180px}.exposure-info summary{cursor:pointer;color:#145b93;text-decoration:underline;text-underline-offset:3px;list-style:none}.exposure-info summary::-webkit-details-marker{display:none}.exposure-info summary:after{content:" ⓘ";font-size:12px}.exposure-popover{position:absolute;z-index:20;right:0;top:100%;width:250px;max-width:80vw;background:#fff;border:1px solid #cbd7e6;box-shadow:0 7px 20px #102f5625;border-radius:9px;padding:12px;line-height:1.7;white-space:normal;color:#17314e}.exposure-popover a{display:inline-block;margin-top:6px;font-weight:700}.exposure-missing{color:#687b91}
 </style></head>
 <body class="locked"><div id="agent-login"><form class="login-panel" id="agent-login-form"><h1>כניסה לסוכן בניית התיקים</h1><p class="note">יש להזין קוד גישה כדי לפתוח את הסוכן.</p><label for="agent-pin">קוד גישה</label><input id="agent-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" required aria-describedby="agent-login-error"><button type="submit">כניסה</button><p id="agent-login-error" class="error" role="alert" hidden></p></form></div><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
 <main>
@@ -381,9 +382,16 @@ function renderPortfolio(plan,c){
   allocatedAmount+=allocation;
   return{name:f.name,number:f.number,weight:weights[i],allocation,asset:f.asset,ret:f.ret,fee:f.fee,stdDev:f.stdDev,eq:f.exposure.equity,fx:f.exposure.fx,profile:f.profile,source:f.source,manager:f.manager,reported:f.reported};
  });
- const exposureText=(reading,cap)=>reading
-  ?fmt(reading.percent)+" · "+(reading.measurementType==="actual"?"בפועל":"ממוצע תקופתי")+" · "+reading.asOf
-  :(Number.isFinite(cap)?"אין נתון בפועל (תקרה "+fmt(cap)+")":"אין נתון מאומת");
+ const exposureCell=(reading,cap)=>{
+  if(!reading)return '<span class="exposure-missing">'+esc(Number.isFinite(cap)?"אין נתון בפועל (תקרה "+fmt(cap)+")":"אין נתון מאומת")+'</span>';
+  const measure=reading.measurementType==="actual"?"חשיפה בפועל":"ממוצע חשיפה תקופתי";
+  const checkedUrl=typeof reading.sourceUrl==="string"&&/^https:\/\//i.test(reading.sourceUrl)?reading.sourceUrl:null;
+  const range=reading.periodStart&&reading.periodEnd?"<div>תקופת המדידה: "+esc(reading.periodStart)+" עד "+esc(reading.periodEnd)+"</div>":"";
+  return '<details class="exposure-info"><summary title="לפרטי מדידה וקישור למסמך המקור">'+esc(fmt(reading.percent))+'</summary>'
+   +'<div class="exposure-popover" role="note"><strong>'+esc(measure)+'</strong><div>תאריך המדידה: '+esc(reading.asOf)+'</div>'+range
+   +(checkedUrl?'<a href="'+esc(checkedUrl)+'" target="_blank" rel="noopener noreferrer">פתיחת מסמך המקור ↗</a>':'<div>לא נמצא קישור מקור מאומת</div>')
+   +'</div></details>';
+ };
  const reportedPortfolio=kind=>{
   if(!picked.length||picked.some(f=>!f.reported?.[kind]))return null;
   return picked.reduce((v,f,i)=>v+weights[i]*f.reported[kind].percent/100,0);
@@ -407,7 +415,7 @@ function renderPortfolio(plan,c){
   +'<p class="note">סטיית תקן מדווחת ברמת הקרן ולא מחושבת כסטיית התקן של התיק. מדידת סיכון תיק מחייבת גם מתאמים בין הקרנות.</p>'
   +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th>מניות מדווחות</th><th>אג״ח מדווח</th><th>מט״ח מדווח</th><th class="num">12 חודשים</th><th class="num">סטיית תקן</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
-  +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td>'+esc(exposureText(f.reported?.equity,f.eq))+'</td><td>'+esc(exposureText(f.reported?.bond,null))+'</td><td>'+esc(exposureText(f.reported?.fx,f.fx))+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.stdDev)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
+  +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td>'+exposureCell(f.reported?.equity,f.eq)+'</td><td>'+exposureCell(f.reported?.bond,null)+'</td><td>'+exposureCell(f.reported?.fx,f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.stdDev)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
   +'<p class="warning">גילוי נאות: התיק נבנה באמצעות מודל ממוחשב על בסיס נתונים פומביים וקריטריונים כמותיים. המידע מיועד למחקר ולהמחשה בלבד ואינו מהווה ייעוץ השקעות, שיווק השקעות או המלצה לפעולה. המודל אינו בוחן התאמה אישית לצורכי המשקיע. השקעה כרוכה בסיכון, תשואות עבר אינן מעידות על תשואות עתידיות.</p>';
  $("portfolio").innerHTML=html;
