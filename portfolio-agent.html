@@ -283,7 +283,10 @@ function buildPortfolio(c){
    // Max five percentage points deviation for each bucket when 1% weights allow it.
    // A preferred equity split must not invalidate a risk-compliant portfolio.
   }
-  return{weights:w,eq,fx,sleeve:sleeveInfo()};
+  const finalSleeve=sleeveInfo();
+  if(c.targetEq>0&&(finalSleeve.regionTotal===0
+    ||Math.abs(finalSleeve.regions.US/finalSleeve.regionTotal-.60)>.05+1e-8))return null;
+  return{weights:w,eq,fx,sleeve:finalSleeve};
  }
  const plans=[];
  function choose(iteration,targetCount){
@@ -302,10 +305,24 @@ function buildPortfolio(c){
    return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty+coreBonus
      -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
+  // Both equity geographies must be represented whenever equity is requested.
+  if(c.targetEq>0){
+   for(const region of ["US","IL"]){
+    const candidate=viable.filter(f=>f.equityRegion===region
+     &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey))
+     &&(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)*minWeight/100<=c.targetEq+1e-8
+     &&(picked.reduce((total,x)=>total+x.exposure.fx,0)+f.exposure.fx)*minWeight/100<=c.fx+1e-8)
+     .sort((a,b)=>utility(b)-utility(a))[0];
+    if(!candidate)return null;
+    add(candidate);
+   }
+  }
   while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)
     &&(!["israelequity","foreignequity"].includes(f.asset)||f.equityBucket)
-    &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey)))
+    &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey))
+    &&(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)*minWeight/100<=c.targetEq+1e-8
+    &&(picked.reduce((total,x)=>total+x.exposure.fx,0)+f.exposure.fx)*minWeight/100<=c.fx+1e-8)
     .sort((a,b)=>utility(b)-utility(a))[0];
    if(!candidate)return null;
    add(candidate);
@@ -335,7 +352,7 @@ function buildPortfolio(c){
    if(plan){plan.targetCount=count;plans.push(plan);}
   }
  }
- if(!plans.length)throw Error("לא נמצא תיק העומד בחלוקת הרכיב המנייתי 60/30/10, בטווח החשיפה וברשימת הקרנות המבוקשת"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
+ if(!plans.length)throw Error("לא נמצא תיק העומד בחלוקת מניות ארה״ב/ישראל 60/40, בטווח החשיפה ובמספר הקרנות המבוקש"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
  // When flexible, deviations require a meaningful quality improvement.
  plans.sort((a,b)=>(b.quality-3*Math.abs(b.picked.length-c.n))-(a.quality-3*Math.abs(a.picked.length-c.n)));
  return plans[0];
