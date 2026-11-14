@@ -53,6 +53,8 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 .exposure-swatch{width:12px;height:12px;border-radius:2px;flex:none}
 @media(max-width:700px){.exposure-grid{grid-template-columns:1fr}}
 @media print{.portfolio-tabs{display:none!important}.portfolio-pane[hidden]{display:block!important}}
+.creator-footer{text-align:center;font-size:12px;line-height:1.7;color:#60728a;margin:22px auto 12px;padding:8px 12px}
+@media print{.creator-footer{font-size:10px;text-align:center}}
 </style></head>
 <body class="locked"><div id="agent-login"><form class="login-panel" id="agent-login-form"><h1>כניסה לסוכן בניית התיקים</h1><p class="note">יש להזין קוד גישה כדי לפתוח את הסוכן.</p><label for="agent-pin">קוד גישה</label><input id="agent-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" required aria-describedby="agent-login-error"><button type="submit">כניסה</button><p id="agent-login-error" class="error" role="alert" hidden></p></form></div><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
 <main>
@@ -90,7 +92,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <p class="note">ברמות סיכון גבוהה וגבוהה מאוד: 50% מדדים מובילים, 30% סקטורים ו־20% נישות. ברמות נמוכה מאוד, נמוכה ובינונית: 65% מדדים מובילים, 25% סקטורים ו־10% נישות. המדדים המובילים הם ת״א 35, ת״א 125, S&P 500 ונאסדק 100. בכל הרמות נשאף לחלוקה גיאוגרפית של 50% ישראל ו־50% חו״ל ברכיב המנייתי, בכפוף לתקרות החשיפה ולזמינות הקרנות. אלה העדפות דירוג ואינן מגבלות קשיחות. נאסדק 100 נחשב מדד מוביל אך נבחנת חפיפה אפשרית בינו לבין סקטורים ונישות טכנולוגיים. הסיווג לפי שם הקרן והמדד המזוהה. אם אין הרכב מתאים למספר הקרנות ולמגבלת מינימום 5% לקרן, הסוכן לא יציג חלוקה כוזבת. הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג קרנות בקבוצות דומות לפי המיקוד שנבחר: איזון בין השלושה, תשואה 40%, סטיית תקן 40%, דמי ניהול 20%; תשואה, תשואה 60%, סטיית תקן 30%, דמי ניהול 10%; סיכון (סטיית תקן), תשואה 30%, סטיית תקן 60%, דמי ניהול 10%; דמי ניהול, תשואה 30%, סטיית תקן 30%, דמי ניהול 40%. נתון סטיית תקן חסר מונע דירוג מלא. הוא מקצה משקל יחסי לפי דירוג הקרנות, כאשר 5% עד 40% לקרן הם גבולות בלבד, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
 <p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
 <footer>כלי מחקר והמחשה בלבד. אין לראות בתיק ייעוץ השקעות אישי, המלצה לרכישה או תחליף לבחינת צרכים, אופק השקעה, נזילות, יכולת לשאת הפסד, מדיניות הקרנות העדכנית, עלויות ומיסוי. תשואות עבר אינן מבטיחות תשואות עתידיות. תיק העומד בתקרות הפרופיל אינו בהכרח בעל רמת סיכון נמוכה: סיכוני אשראי, ריבית, מח״מ, נזילות וריכוזיות אינם נמדדים כאן.</footer></div></details>
-</section></main>
+</section><footer class="creator-footer">פותח ע״י דורון שרייבמן | כל הזכויות שמורות | לשימוש יועצי השקעות בלבד</footer></main>
 <script>
 "use strict";
 const $=id=>document.getElementById(id),esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -621,6 +623,13 @@ function updateForeignEquityFx(){
  const notice=$("foreign-equity-fx-warning");
  notice.hidden=!restricted;notice.open=restricted;
 }
+const defaultAssetsByRisk={
+ 1:["money","gov"],
+ 2:["money","gov","corp","localbond","foreignbond","israelequity","foreignequity"],
+ 3:["gov","corp","localbond","foreignbond","israelequity","foreignequity"],
+ 4:["corp","localbond","foreignbond","israelequity","foreignequity"],
+ 5:["israelequity","foreignequity"]
+};
 function adjustRisk(){
  const r=riskLevels[Number($("risk").value)];
  for(const [id,limit] of [["equity",r.eq],["fx",r.fx]]){
@@ -629,7 +638,11 @@ function adjustRisk(){
   $(id).disabled=limit===0;
  }
  $("riskExplanation").textContent="רמה "+$("risk").value+" · "+r.name+": מגבלות ברירת המחדל הן מניות עד "+r.eq+"% ומט״ח עד "+r.fx+"%. אפשר להחמיר את המגבלות; ערך גבוה יותר אינו עוקף את גבולות רמת הסיכון. דירוג זה אינו מודד סיכוני אשראי, מח״מ או תנודתיות.";
- for(const el of document.querySelectorAll("#categories input")){el.disabled=!r.allowed.includes(el.value);if(el.disabled)el.checked=false;}
+ const defaults=new Set(defaultAssetsByRisk[Number($("risk").value)]||[]);
+ for(const el of document.querySelectorAll("#categories input")){
+  el.disabled=!r.allowed.includes(el.value);
+  el.checked=!el.disabled&&defaults.has(el.value);
+ }
  updateForeignEquityFx();
 }
 $("risk").addEventListener("change",adjustRisk);
@@ -644,7 +657,7 @@ for(const id of ["equity","fx"]){
  $(id).addEventListener("input",()=>{clamp();if(id==="fx")updateForeignEquityFx();});
  $(id).addEventListener("change",()=>{clamp();if(id==="fx")updateForeignEquityFx();});
 }
-$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("countMode").value="exact";$("risk").value=3;adjustRisk();for(const el of document.querySelectorAll("#categories input"))el.checked=["gov","corp","foreignbond","foreignequity"].includes(el.value);$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";latestShareText="";$("share-actions").hidden=true;$("resolve-block").hidden=true;$("resolve-block").open=false;});
+$("reset").addEventListener("click",()=>{for(const id of ["style","diversify","bond","selection"])$(id).selectedIndex=0;$("amount").value="";$("count").value=6;$("countMode").value="exact";$("risk").value=3;adjustRisk();$("message").className="note";$("message").textContent="ההגדרות אופסו. לחץ ״בנה תיק״ לחישוב מחודש.";$("portfolio").innerHTML="";latestShareText="";$("share-actions").hidden=true;$("resolve-block").hidden=true;$("resolve-block").open=false;});
 $("resolve-block").addEventListener("click",event=>{const button=event.target.closest("button[data-edit]");if(!button)return;const id=button.dataset.edit;const target=id==="categories"?document.querySelector("#categories input:not(:disabled)") :$(id);if(!target)return;target.scrollIntoView({behavior:"smooth",block:"center"});target.focus({preventScroll:true});});
 $("build").addEventListener("click",()=>{try{const c=config(),plan=buildPortfolio(c);renderPortfolio(plan,c);}catch(err){showError(err.message||"שגיאה בבניית התיק");}});
 $("share-whatsapp").addEventListener("click",()=>{
