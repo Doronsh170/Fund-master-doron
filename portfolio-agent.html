@@ -173,9 +173,22 @@ function equityBucket(f){
  function equityBenchmark(f){
   if(f.indexKey)return f.indexKey;
   if(!f.equityBucket)return null;
-  const n=String(f.name||"").toUpperCase().replace(/S\s*&\s*P/g,"SP").replace(/S&P/g,"SP");
+  const name=String(f.name||"").toUpperCase();
+  const n=name.replace(/S\s*&\s*P/g,"SP").replace(/S&P/g,"SP");
   const match=n.match(/\bSP\s*(?:500\s*)?(FINANCIAL|INDUSTRIAL|TECHNOLOGY|ENERGY|HEALTH(?:CARE)?|REAL\s*ESTATE|CONSUMER\s*STAPLES|CONSUMER\s*DISCRETIONARY|MATERIALS|UTILITIES|COMMUNICATION\s*SERVICES)\b/);
-  return match?"SP_SECTOR_"+match[1].replace(/\s+/g,"_"):null;
+  if(match)return"SP_SECTOR_"+match[1].replace(/\s+/g,"_");
+  // Generic identity for any other equity benchmark, without assuming two distinct
+  // sector indices are identical. Remove publisher/manager wrappers, not index terms.
+  let label=n.replace(/^\s*(?:קרן\s+)?(?:סל|מחקה|קרן\s+מחקה|ETF|TTF)\s+/," ");
+  const manager=String(f.manager||"").toUpperCase().trim();
+  if(manager&&label.startsWith(manager+" "))label=label.slice(manager.length);
+  label=label.replace(/^(?:הראל|קסם|מור|מגדל|מיטב|תכלית|אי\.?\s?בי\.?\s?אי|IBI|איביאי|ילין\s+לפידות|אלטשולר(?:\s+שחם)?|MTF|KTF|TTF|ETF)\s+(?:(?:סל|מחקה|קרן\s+מחקה|ETF|TTF)\s+)?/,"");
+  label=label.replace(/(?:\(\s*[0-5][0A-E]\s*\)|\b[0-5][0A-E]\b)/g," ");
+  label=label.replace(/\b(?:ETF|KTF|MTF|TTF|קרן|מחקה|סל|חוץ|מנוטרלת?\s+מטבע|מגודרת?\s+מטבע)\b/g," ");
+  label=label.replace(/[״"'׳.,:;()[\]{}_\-]/g," ").replace(/\s+/g," ").trim();
+  // Require a meaningful benchmark phrase, not an asset class alone.
+  if(label.length<5||/^(?:מניות|מניות בישראל|מניות בחו"ל|ישראל|ארה"ב|חו"ל|EQUITY|STOCKS)$/.test(label))return null;
+  return"INDEX_NAME:"+label;
  }
  function isTechnologyTilt(f){
   const name=String(f.name||"").toUpperCase();
