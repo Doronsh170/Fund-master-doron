@@ -147,6 +147,36 @@ function equityBucket(f){
   if(f.asset==="foreignequity")return"FOREIGN";
   return null;
  }
+ // A thematic exposure group is broader than an index name. Banks are part of financials.
+ // Keep thematic duplicates out of the selected portfolio, including sector/niche overlaps.
+ function equityTheme(f){
+  if(!f.equityBucket||f.equityBucket==="core")return null;
+  const n=String(f.name||"").toUpperCase();
+  if(/פיננס|FINANC|BANK|בנקים|בנקאות|אשראי|INSURANCE|ביטוח/.test(n))return"financials";
+  if(/SEMICONDUCT|שבבים/.test(n))return"semiconductors";
+  if(/CYBER|סייבר/.test(n))return"cyber";
+  if(/CLOUD|ענן/.test(n))return"cloud";
+  if(/נדל|REAL ESTATE|REIT/.test(n))return"realestate";
+  if(/בריאות|HEALTH|PHARMA|פארמה|ביוטק|BIOTECH/.test(n))return"healthcare";
+  if(/אנרג|ENERGY|OIL|נפט|גז טבעי/.test(n))return"energy";
+  if(/תעשיי|INDUSTRIAL/.test(n))return"industrials";
+  if(/תשתיות|INFRASTRUCTURE/.test(n))return"infrastructure";
+  if(/טכנולוג|TECHNOLOGY|TECH\\b|SOFTWARE|תוכנה/.test(n))return"technology";
+  if(/צריכה|CONSUMER/.test(n))return"consumer";
+  if(/COMMUNICATION|תקשורת/.test(n))return"communications";
+  if(/UTILITIES|שירותים ציבוריים/.test(n))return"utilities";
+  if(/חומרי גלם|MATERIALS/.test(n))return"materials";
+  return null;
+ }
+ // Only assign a benchmark identity when the index is unambiguous from the fund name.
+ // SP Financial and S&P Financial are the same benchmark, regardless of manager.
+ function equityBenchmark(f){
+  if(f.indexKey)return f.indexKey;
+  if(!f.equityBucket)return null;
+  const n=String(f.name||"").toUpperCase().replace(/S\\s*&\\s*P/g,"SP").replace(/S&P/g,"SP");
+  const match=n.match(/\\bSP\\s*(?:500\\s*)?(FINANCIAL|INDUSTRIAL|TECHNOLOGY|ENERGY|HEALTH(?:CARE)?|REAL\\s*ESTATE|CONSUMER\\s*STAPLES|CONSUMER\\s*DISCRETIONARY|MATERIALS|UTILITIES|COMMUNICATION\\s*SERVICES)\\b/);
+  return match?"SP_SECTOR_"+match[1].replace(/\\s+/g,"_"):null;
+ }
  function isTechnologyTilt(f){
   const name=String(f.name||"").toUpperCase();
   return f.indexKey==="NASDAQ100"||/טכנולוג|TECHNOLOGY|TECH\b|שבבים|SEMICONDUCT|סייבר|CYBER|ענן|CLOUD|בינה מלאכותית|ARTIFICIAL INTELLIGENCE|SOFTWARE|תוכנה/i.test(name);
@@ -232,7 +262,7 @@ function buildPortfolio(c){
  // For a 100% portfolio cap, clamp unverified profile ceilings only for planning feasibility.
  // Never describe this proxy as reported actual exposure or as a guaranteed regulatory ceiling.
  for(const f of viable){
-  f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);
+  f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);f.equityTheme=equityTheme(f);f.equityBenchmark=equityBenchmark(f);
   const planning=(kind,limit)=>{
    const reported=f.reported?.[kind];
    if(reported?.measurementType==="actual"&&Number.isFinite(reported.percent))return reported.percent;
@@ -359,7 +389,10 @@ function buildPortfolio(c){
   while(picked.length<targetCount){
    const candidate=viable.filter(f=>!used.has(f.number)
     &&(!["israelequity","foreignequity"].includes(f.asset)||f.equityBucket)
-    &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey))
+    &&(!f.equityBenchmark||!picked.some(x=>x.equityBenchmark===f.equityBenchmark))
+     // One focused fund per exposure theme: prevents two financial-sector
+     // funds and the addition of another overlapping bank-sector fund.
+     &&(!f.equityTheme||!picked.some(x=>x.equityTheme===f.equityTheme))
     &&(picked.reduce((total,x)=>total+x.planningExposure.equity,0)+f.planningExposure.equity)*minWeight/100<=c.targetEq+1e-8
     &&(picked.reduce((total,x)=>total+x.planningExposure.fx,0)+f.planningExposure.fx)*minWeight/100<=c.fx+1e-8)
     .sort((a,b)=>utility(b)-utility(a))[0];
