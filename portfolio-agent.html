@@ -52,8 +52,8 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <label>גישה לניהול<select id="style"><option value="blend">שילוב אקטיבי ופסיבי</option><option value="active">אקטיבי</option><option value="passive">פסיבי</option></select></label>
 <label>גישה לפיזור<select id="diversify"><option value="core">ליבה וקרנות ממוקדות</option><option value="wide">פיזור רחב</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
 <label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
-<label>עדיפות בדירוג<select id="selection"><option value="balanced">תשואה 70% ועלות 30%</option><option value="returns">תשואה 85% ועלות 15%</option><option value="fees">תשואה 40% ועלות 60%</option></select></label>
-</div><p class="note">העדפות היועץ משנות את בחירת הקרנות והמשקולות בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
+<label>גישת דירוג הקרנות<select id="selection"><option value="balanced">מאוזנת, תשואה 40%, סטיית תקן 40%, דמי ניהול 20%</option><option value="returns">מוטת תשואה, תשואה 60%, סטיית תקן 30%, דמי ניהול 10%</option><option value="fees">מוטת עלויות, תשואה 30%, סטיית תקן 30%, דמי ניהול 40%</option></select></label>
+</div><p class="note">גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
 <p class="note">סמן את האפיקים שמהם מותר לסוכן לבחור קרנות. סימון אפיק אינו מחייב לשלב אותו בתיק. ההרכב ייקבע על פי דירוג הקרנות, העדפות היועץ ומגבלות הסיכון. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
 <div class="categories" id="categories">
 <label><input type="checkbox" value="money">קרנות כספיות</label>
@@ -69,7 +69,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 </section>
 <section class="panel" id="output" aria-live="polite"><div class="print-heading" style="display:none"><h1>תיק קרנות, דוח מחקרי</h1><p>סוכן בניית תיקי קרנות | Doron Tools</p></div><h2>תיק מוצע</h2><div id="share-actions" class="actions share-actions" hidden><button id="share-whatsapp" type="button">שיתוף בווטסאפ</button><button id="share-pdf" type="button" class="secondary">שמירה כ־PDF</button></div><p id="message" class="note">טוען את רשימת הקרנות ואת נתוני התשואות ממאיה.</p><div id="portfolio"></div></section>
 <section class="panel"><h2>איך נבחרות הקרנות?</h2>
-<p class="note">בתקרת מניות של 50% ומעלה, יעד החלוקה המנייתית הוא 60% מדדים מובילים, 30% סקטורים ו־10% נישות. מתחת ל־50% היעד הוא התמקדות במדדים מובילים. בכל רמות הסיכון, הרכיב המנייתי מחולק לפי יעד גיאוגרפי של 60% ארה״ב ו־40% ישראל, בסטייה של עד 5 נקודות אחוז. אלה העדפות דירוג ואינן מגבלות קשיחות. הסיווג לפי שם הקרן והמדד המזוהה. אם אין הרכב מתאים למספר הקרנות ולמגבלת מינימום 5% לקרן, הסוכן לא יציג חלוקה כוזבת. הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג קרנות בקבוצות דומות לפי תשואת 12 חודשים (49%), דמי ניהול (21%) וסטיית תקן ממאיה (30%). העדפות היועץ עשויות לשנות את היחס בין תשואה לדמי ניהול בלבד. נתון סטיית תקן חסר מונע דירוג מלא. הוא מקצה משקל יחסי לפי דירוג הקרנות, כאשר 5% עד 40% לקרן הם גבולות בלבד, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
+<p class="note">בתקרת מניות של 50% ומעלה, יעד החלוקה המנייתית הוא 60% מדדים מובילים, 30% סקטורים ו־10% נישות. מתחת ל־50% היעד הוא התמקדות במדדים מובילים. בכל רמות הסיכון, הרכיב המנייתי מחולק לפי יעד גיאוגרפי של 60% ארה״ב ו־40% ישראל, בסטייה של עד 5 נקודות אחוז. אלה העדפות דירוג ואינן מגבלות קשיחות. הסיווג לפי שם הקרן והמדד המזוהה. אם אין הרכב מתאים למספר הקרנות ולמגבלת מינימום 5% לקרן, הסוכן לא יציג חלוקה כוזבת. הסוכן מסנן קרנות לפי פרופיל החשיפה המוצהר במאיה והאפיק שלהן, ומדרג קרנות בקבוצות דומות לפי הגישה שנבחרה: מאוזנת, תשואה 40%, סטיית תקן 40%, דמי ניהול 20%; מוטת תשואה, תשואה 60%, סטיית תקן 30%, דמי ניהול 10%; מוטת עלויות, תשואה 30%, סטיית תקן 30%, דמי ניהול 40%. נתון סטיית תקן חסר מונע דירוג מלא. הוא מקצה משקל יחסי לפי דירוג הקרנות, כאשר 5% עד 40% לקרן הם גבולות בלבד, עם העדפה לפיזור בין מנהלים וקבוצות משנה, בכפוף לתקרות החשיפה ולמספר הקרנות המבוקש. אין תחזית תשואה, אופטימיזציית שונות-תוחלת או נתוני החזקות בפועל.</p>
 <p class="note">פרופיל חשיפה 2B, לדוגמה, מציין חשיפה מרבית מותרת לפי מדיניות הקרן של עד 30% מניות ועד 30% מט״ח. תקרת התיק מחושבת כסכום משוקלל של תקרות הקרנות. קרנות ללא פרופיל תקין או עם דרגת חשיפה מעל 200% אינן נכללות. הסוכן אינו מאפשר חריגה מגבולות הסיכון שבחרת, גם אם מגבלות המניות והמט״ח שהוגדרו גבוהות יותר.</p>
 <footer>כלי מחקר והמחשה בלבד. אין לראות בתיק ייעוץ השקעות אישי, המלצה לרכישה או תחליף לבחינת צרכים, אופק השקעה, נזילות, יכולת לשאת הפסד, מדיניות הקרנות העדכנית, עלויות ומיסוי. תשואות עבר אינן מבטיחות תשואות עתידיות. תיק העומד בתקרות הפרופיל אינו בהכרח בעל רמת סיכון נמוכה: סיכוני אשראי, ריבית, מח״מ, נזילות וריכוזיות אינם נמדדים כאן.</footer>
 </section></main>
@@ -175,7 +175,7 @@ function rankCandidates(funds){
    f.returnRank=eligible.length>=5&&f.ret!==null&&Number.isFinite(f.fee)&&f.stdDev!==null?percentile(f.ret,returns,false):null;
    f.feeRank=f.returnRank===null?null:percentile(f.fee,fees,true);
    f.volRank=f.returnRank===null?null:percentile(f.stdDev,deviations,true);
-   f.score=f.returnRank===null?null:.49*f.returnRank+.21*f.feeRank+.30*f.volRank;
+   f.score=f.returnRank===null?null:.40*f.returnRank+.20*f.feeRank+.40*f.volRank;
   }
  }
  return funds;
@@ -183,11 +183,11 @@ function rankCandidates(funds){
 function advisor(){return{style:$("style").value,diversify:$("diversify").value,bond:$("bond").value,selection:$("selection").value};}
 function preferenceScore(f,p){
  const passive=f.type==="קרן סל"||f.type==="קרן מחקה";
- const mix=p.selection==="returns"?[.85,.15]:p.selection==="fees"?[.40,.60]:[.70,.30];
+ const weights=p.selection==="returns"?[.60,.30,.10]:p.selection==="fees"?[.30,.30,.40]:[.40,.40,.20];
  let bonus=p.style==="passive"?(passive?9:-9):p.style==="active"?(passive?-9:9):0;
  if(f.asset==="gov")bonus+=p.bond==="gov"?24:p.bond==="corp"?-24:0;
  if(f.asset==="corp")bonus+=p.bond==="corp"?24:p.bond==="gov"?-24:0;
- return .70*(mix[0]*f.returnRank+mix[1]*f.feeRank)+.30*f.volRank+bonus;
+ return weights[0]*f.returnRank+weights[1]*f.volRank+weights[2]*f.feeRank+bonus;
 }
 function config(){
  const amount=Number($("amount").value),n=Number($("count").value),eq=Number($("equity").value),fx=Number($("fx").value),level=Number($("risk").value),risk=riskLevels[level];
