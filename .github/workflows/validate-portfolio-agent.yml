@@ -25,9 +25,9 @@ jobs:
             assert(js.includes(token),'Missing required guard: '+token);
           }
           // Functional regression: official MAYA characteristics determine management style.
-          const method=js.match(/function managementStyle\\(f\\)\\{[\\s\\S]*?\\n\\}\\nfunction advisor/);
+          const method=js.match(/function managementStyle\(f\)\{[\s\S]*?\n\}\nfunction advisor/);
           assert(method,'Missing management style classifier');
-          const fundStyleSource=method[0].replace(/\\nfunction advisor$/,'');
+          const fundStyleSource=method[0].replace(/\nfunction advisor$/,'');
           const ctx={performance:{
             '5101506':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5101506',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[{enabled:true,title:'לפי מדיניות השקעותיה הקרן הינה קרן מחקה'}]}}},
             '5106562':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5106562',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[]}}},
