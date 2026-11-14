@@ -228,13 +228,24 @@ function buildPortfolio(c){
  const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null
   &&(c.advisor.style==="blend"?managementStyle(f)!=="unknown":managementStyle(f)===c.advisor.style)
   &&(!["israelequity","foreignequity"].includes(f.asset)||equityRegion(f)));
- for(const f of viable){f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);}
+ // Regulatory profiles 4 and 5 allow up to 120%/200%; those numbers are not actual holdings.
+ // For a 100% portfolio cap, clamp unverified profile ceilings only for planning feasibility.
+ // Never describe this proxy as reported actual exposure or as a guaranteed regulatory ceiling.
+ for(const f of viable){
+  f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);
+  const planning=(kind,limit)=>{
+   const reported=f.reported?.[kind];
+   if(reported?.measurementType==="actual"&&Number.isFinite(reported.percent))return reported.percent;
+   return limit===100?Math.min(f.exposure[kind],100):f.exposure[kind];
+  };
+  f.planningExposure={equity:planning("equity",c.eq),fx:planning("fx",c.fx)};
+ }
  for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
  const perAsset=new Map(typeNames.map(a=>[a,viable.filter(f=>f.asset===a)]));
  if(viable.length<Math.min(c.n,3))throw Error("אין מספיק קרנות כשירות לבניית תיק במסגרת מגבלות החשיפה וגישת הניהול שנבחרה. ניתן לשנות את גישת הניהול או את יתר ההגדרות.");
  const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
  const sleeveTargets=c.level>=4?{core:.50,sector:.30,niche:.20}:{core:.65,sector:.25,niche:.10};
- const riskCost=f=>f.exposure.fx/(c.fx||1);
+ const riskCost=f=>f.planningExposure.fx/(c.fx||1);
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
  // The score is a relative ranking within comparable funds, not an estimate of return.
  function allocate(picked,iteration){
@@ -253,8 +264,8 @@ function buildPortfolio(c){
   });
   const strengthTotal=strengths.reduce((a,b)=>a+b,0);
   const targets=strengths.map(v=>100*v/strengthTotal);
-  let eq=picked.reduce((t,f)=>t+f.exposure.equity*minWeight/100,0);
-  let fx=picked.reduce((t,f)=>t+f.exposure.fx*minWeight/100,0);
+  let eq=picked.reduce((t,f)=>t+f.planningExposure.equity*minWeight/100,0);
+  let fx=picked.reduce((t,f)=>t+f.planningExposure.fx*minWeight/100,0);
   if(eq>c.targetEq+1e-8||fx>c.fx+1e-8)return null;
   // Add one percentage point at a time to the most underweighted fund
   // relative to its ranking target. Exposure constraints always take priority.
@@ -262,20 +273,20 @@ function buildPortfolio(c){
   while(remaining>0){
    const options=picked.map((f,i)=>({f,i}))
     .filter(x=>w[x.i]<maxWeight
-      &&eq+x.f.exposure.equity/100<=c.targetEq+1e-8
-      &&fx+x.f.exposure.fx/100<=c.fx+1e-8);
+      &&eq+x.f.planningExposure.equity/100<=c.targetEq+1e-8
+      &&fx+x.f.planningExposure.fx/100<=c.fx+1e-8);
    if(!options.length)return null;
    options.sort((a,b)=>{
     const gapA=targets[a.i]-w[a.i],gapB=targets[b.i]-w[b.i];
-    const equityGain=x=>x.f.exposure.equity/100;
+    const equityGain=x=>x.f.planningExposure.equity/100;
     const needMoreEquity=eq<c.minEq-1e-7;
     const preference=x=>targets[x.i]-w[x.i]+(needMoreEquity?2.5*equityGain(x):0);
     return preference(b)-preference(a)||(b.f.adjustedScore-a.f.adjustedScore)||a.i-b.i;
    });
    const best=options[0];
    w[best.i]+=1;
-   eq+=best.f.exposure.equity/100;
-   fx+=best.f.exposure.fx/100;
+   eq+=best.f.planningExposure.equity/100;
+   fx+=best.f.planningExposure.fx/100;
    remaining--;
   }
   if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.targetEq+1e-7||fx>c.fx+1e-7)return null;
@@ -300,8 +311,8 @@ function buildPortfolio(c){
     let best=null,bestGain=1e-7;
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){
      if(i===j||w[i]<=minWeight||w[j]>=maxWeight)continue;
-     const newEq=eq+(picked[j].exposure.equity-picked[i].exposure.equity)/100;
-     const newFx=fx+(picked[j].exposure.fx-picked[i].exposure.fx)/100;
+     const newEq=eq+(picked[j].planningExposure.equity-picked[i].planningExposure.equity)/100;
+     const newFx=fx+(picked[j].planningExposure.fx-picked[i].planningExposure.fx)/100;
      if(newEq<c.minEq-1e-7||newEq>c.targetEq+1e-7||newFx>c.fx+1e-7)continue;
      w[i]--;w[j]++;
      const next=sleeveInfo();
@@ -333,7 +344,7 @@ function buildPortfolio(c){
    const noise=((f.number.split("").reduce((t,v)=>t+Number(v),0)*31+iteration*19)%53)/53;
    const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
    const dispersion=["wide","index"].includes(c.advisor.diversify)?2.8:c.advisor.diversify==="focus"?.05:1;
-   const projectedEq=(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)/(picked.length+1);
+   const projectedEq=(picked.reduce((total,x)=>total+x.planningExposure.equity,0)+f.planningExposure.equity)/(picked.length+1);
    const riskFitPenalty=(.6+(iteration%4)*.2)*Math.abs(projectedEq-c.targetEq);
    const coreBonus=f.equityBucket==="core"?5:0;
     const equityPicked=picked.filter(x=>x.equityBucket);
@@ -349,8 +360,8 @@ function buildPortfolio(c){
    const candidate=viable.filter(f=>!used.has(f.number)
     &&(!["israelequity","foreignequity"].includes(f.asset)||f.equityBucket)
     &&(!f.indexKey||!picked.some(x=>x.indexKey===f.indexKey))
-    &&(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)*minWeight/100<=c.targetEq+1e-8
-    &&(picked.reduce((total,x)=>total+x.exposure.fx,0)+f.exposure.fx)*minWeight/100<=c.fx+1e-8)
+    &&(picked.reduce((total,x)=>total+x.planningExposure.equity,0)+f.planningExposure.equity)*minWeight/100<=c.targetEq+1e-8
+    &&(picked.reduce((total,x)=>total+x.planningExposure.fx,0)+f.planningExposure.fx)*minWeight/100<=c.fx+1e-8)
     .sort((a,b)=>utility(b)-utility(a))[0];
    if(!candidate)return null;
    add(candidate);
@@ -394,7 +405,7 @@ function renderPortfolio(plan,c){
  $("resolve-block").hidden=true;$("resolve-block").open=false;
  const {picked,weights,eq,fx}=plan,asof=new Date(snapshot.generatedAt).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",dateStyle:"short",timeStyle:"short"});
  $("message").className="good";
- $("message").textContent="נמצא הרכב מחקרי של "+picked.length+" קרנות העומד בתקרות החשיפה שהוגדרו, לפי פרופיל החשיפה המרבי של כל קרן. נתוני מאיה: "+asof+".";
+ $("message").textContent="נמצא הרכב מחקרי של "+picked.length+" קרנות העומד בתקרות החשיפה שהוגדרו, לפי חשיפה מדווחת כאשר קיימת, ואחרת לפי אומדן תכנוני שאינו מאמת את החשיפה בפועל. נתוני מאיה: "+asof+".";
  const fmt=n=>Number.isFinite(n)?n.toFixed(2)+"%":"לא פורסם";
  const currency=n=>new Intl.NumberFormat("he-IL",{style:"currency",currency:"ILS",maximumFractionDigits:0}).format(n);
  let allocatedAmount=0;
@@ -421,8 +432,8 @@ function renderPortfolio(plan,c){
  const html='<div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
-  +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
-  +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
+  +'<div class="metric"><small>מניות, חשיפה לחישוב</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
+  +'<div class="metric"><small>מט״ח, חשיפה לחישוב</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
   +(actualEq===null?'':'<div class="metric"><small>מניות, נתון מדווח</small><strong>'+fmt(actualEq)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
   +(actualFx===null?'':'<div class="metric"><small>מט״ח, נתון מדווח</small><strong>'+fmt(actualFx)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
   +(actualBond===null?'':'<div class="metric"><small>אג״ח, נתון מדווח</small><strong>'+fmt(actualBond)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
@@ -430,12 +441,12 @@ function renderPortfolio(plan,c){
   +'<details class="methodology portfolio-notes"><summary>פירוט הרכב התיק והנחות המודל</summary><div class="methodology-content">'
   +'<p class="note">חלוקת קרנות הרכיב המנייתי לפי משקל קרנות מנייתיות בתיק: מדדים מובילים '+fmt(plan.sleeve?.total?plan.sleeve.by.core/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?50:65)+'%), סקטורים '+fmt(plan.sleeve?.total?plan.sleeve.by.sector/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?30:25)+'%), נישות '+fmt(plan.sleeve?.total?plan.sleeve.by.niche/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?20:10)+'%). הסיווג לפי שם הקרן והמדד המזוהה, ואינו מדידת החזקות בפועל.</p>'
   +'<p class="note">פיזור גיאוגרפי של רכיב הקרנות המנייתיות: חו״ל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.FOREIGN/plan.sleeve.regionTotal:0)+' (יעד 50%), ישראל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.IL/plan.sleeve.regionTotal:0)+' (יעד 50%). הזיהוי מבוסס על שם הקרן וסיווגה, ולא על פירוט אחזקות. החלוקה עשויה לסטות מהיעד בהתאם למגבלות הסיכון ולקרנות הזמינות.</p>'
-  +'<p class="note">התאמת החשיפה לרמת הסיכון: טווח עבודה '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' לפי פרופילי החשיפה המרבית של הקרנות. אין להסיק מכך את שיעור המניות בפועל, וסיכוני אג״ח ומח״מ אינם מכומתים.</p>'
+  +'<p class="note">התאמת החשיפה לרמת הסיכון: טווח עבודה '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' על בסיס נתוני חשיפה בפועל ככל שקיימים, ובהיעדרם אומדן המוגבל ל־100% כאשר תקרת התיק 100%. אומדן זה אינו תקרת החשיפה הרגולטורית ואינו אישור לעמידה בחשיפה בפועל. פרופילי 4/5 עשויים להתיר מעל 100%. סיכוני אג״ח ומח״מ אינם מכומתים.</p>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
   +'<p class="note">הרכב אפיקי אג״ח ישירים: קונצרני '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="corp"?weights[i]:0),0))+' מהתיק; ממשלתי '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="gov"?weights[i]:0),0))+' מהתיק. קרנות אג״ח כללי וקרנות אג״ח בחו״ל מוצגות בנפרד ואינן משויכות אוטומטית לאחת הקבוצות.</p>'
   +'<p class="note">סגנון פיזור: '+(c.advisor.diversify==="wide"?"פיזור בין קרנות ומנהלים, העדפה למנהלים וקבוצות סיווג מגוונים ומשקולות מאוזנות":c.advisor.diversify==="index"?"פיזור בתוך המדד, העדפה מתונה למדדי מניות רחבים כאשר דירוג הקרנות דומה, לצד פיזור בין מנהלים":c.advisor.diversify==="focus"?"תיק ממוקד, העדפה לקרנות בדירוג גבוה ומשקולות מרוכזות יותר":"פיזור ליבה עם קרנות ממוקדות")+'. אין מדידה של חפיפת החזקות בפועל.</p>'
   +'<p class="note">סטיית תקן מדווחת ברמת הקרן ולא מחושבת כסטיית התקן של התיק. מדידת סיכון תיק מחייבת גם מתאמים בין הקרנות.</p>'
-  +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
+  +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). נתוני התכנון אינם בהכרח חשיפות בפועל או תקרות חשיפה חוקיות; יש לבדוק נתונים מדווחים לפני שימוש בתיק. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'</div></details>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">סטיית תקן</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.stdDev)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
@@ -449,7 +460,7 @@ function renderPortfolio(plan,c){
   "סכום תיק: "+currency(c.amount),
   "רמת סיכון: "+c.risk.name,
   "מספר קרנות: "+picked.length+(c.countMode==="flex"?" (יעד "+c.n+", גמיש)":" (מדויק)"),
-  "תקרות משוקללות: מניות "+fmt(eq)+", מט״ח "+fmt(fx),
+  "חשיפות תכנון משוקללות (לא בהכרח חשיפה בפועל): מניות "+fmt(eq)+", מט״ח "+fmt(fx),
   "חשיפה מדווחת: מניות "+fmt(actualEq)+", אג״ח "+fmt(actualBond)+", מט״ח "+fmt(actualFx)+" (בהיעדר נתון מאומת: לא פורסם)",
   "חלוקה גיאוגרפית ברכיב המנייתי: חו״ל "+fmt(plan.sleeve.regionTotal?100*plan.sleeve.regions.FOREIGN/plan.sleeve.regionTotal:0)+", ישראל "+fmt(plan.sleeve.regionTotal?100*plan.sleeve.regions.IL/plan.sleeve.regionTotal:0),
   "דמי ניהול משוקללים: "+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0)),
