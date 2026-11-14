@@ -21,7 +21,7 @@ jobs:
           const js=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
           assert(js,'Missing script');
           new vm.Script(js,{filename:'portfolio-agent.html'});
-          for(const token of ['exposure','buildPortfolio','riskLevels','c.requested','score!==null','sourceVerified','c.eq','c.fx','מגבלות']){
+          for(const token of ['exposure','buildPortfolio','riskLevels','requested,allowed','score!==null','sourceVerified','c.eq','c.fx','מגבלות','c.advisor.style===\"passive\"','f.type===\"קרן סל\"','f.type===\"קרן מחקה\"']){
             assert(js.includes(token),'Missing required guard: '+token);
           }
           const link=fs.readFileSync('index.html','utf8');
