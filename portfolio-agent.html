@@ -289,6 +289,20 @@ function buildPortfolio(c){
  const minWeight=5,maxWeight=40; // Bounds, not required category allocations.
  const sleeveTargets=c.level>=4?{core:.50,sector:.30,niche:.20}:{core:.65,sector:.25,niche:.10};
  const riskCost=f=>f.planningExposure.fx/(c.fx||1);
+ const equityOnly=c.allowed.length>0&&c.allowed.every(a=>["israelequity","foreignequity"].includes(a));
+ const bucketKeys=["core","sector","niche"];
+ const sleevePercent={core:Math.round(sleeveTargets.core*100),sector:Math.round(sleeveTargets.sector*100),niche:Math.round(sleeveTargets.niche*100)};
+ function bucketQuotas(count){
+  const quotas={core:Math.max(1,Math.ceil(sleevePercent.core/maxWeight)),sector:Math.max(1,Math.ceil(sleevePercent.sector/maxWeight)),niche:Math.max(1,Math.ceil(sleevePercent.niche/maxWeight))};
+  if(count<bucketKeys.reduce((n,k)=>n+quotas[k],0))return null;
+  while(bucketKeys.reduce((n,k)=>n+quotas[k],0)<count){
+   const options=bucketKeys.filter(k=>(quotas[k]+1)*minWeight<=sleevePercent[k]);
+   if(!options.length)return null;
+   options.sort((a,b)=>(sleevePercent[b]/(quotas[b]+1))-(sleevePercent[a]/(quotas[a]+1)));
+   quotas[options[0]]++;
+  }
+  return quotas;
+ }
  // Allocate by peer-ranking score. 5%-40% are bounds, not allocation targets.
  // The score is a relative ranking within comparable funds, not an estimate of return.
  function allocate(picked,iteration){
@@ -313,9 +327,17 @@ function buildPortfolio(c){
   // Add one percentage point at a time to the most underweighted fund
   // relative to its ranking target. Exposure constraints always take priority.
   let remaining=100-n*minWeight;
+  const bucketAllocated={core:0,sector:0,niche:0};
+  for(let i=0;i<n;i++)if(picked[i].equityBucket)bucketAllocated[picked[i].equityBucket]+=w[i];
+  const strictSleeve=equityOnly;
+  if(strictSleeve&&bucketKeys.some(k=>{
+   const count=picked.filter(f=>f.equityBucket===k).length;
+   return count===0||count*minWeight>sleevePercent[k]||count*maxWeight<sleevePercent[k];
+  }))return null;
   while(remaining>0){
    const options=picked.map((f,i)=>({f,i}))
     .filter(x=>w[x.i]<maxWeight
+      &&(!strictSleeve||bucketAllocated[x.f.equityBucket]<sleevePercent[x.f.equityBucket])
       &&eq+x.f.planningExposure.equity/100<=c.targetEq+1e-8
       &&fx+x.f.planningExposure.fx/100<=c.fx+1e-8);
    if(!options.length)return null;
@@ -328,12 +350,14 @@ function buildPortfolio(c){
    });
    const best=options[0];
    w[best.i]+=1;
+   if(best.f.equityBucket)bucketAllocated[best.f.equityBucket]++;
    eq+=best.f.planningExposure.equity/100;
    fx+=best.f.planningExposure.fx/100;
    remaining--;
   }
   if(Math.abs(w.reduce((a,b)=>a+b,0)-100)>1e-8||eq>c.targetEq+1e-7||fx>c.fx+1e-7)return null;
   if(eq<c.minEq-1e-7)return null;
+  if(strictSleeve&&bucketKeys.some(k=>bucketAllocated[k]!==sleevePercent[k]))return null;
   // Rebalance one percentage point between funds to approach the risk-level mix within
   // the equity sleeve. Never exceed per-fund, equity, or FX limits.
   const sleeveInfo=()=>{
@@ -354,6 +378,7 @@ function buildPortfolio(c){
     let best=null,bestGain=1e-7;
     for(let i=0;i<n;i++)for(let j=0;j<n;j++){
      if(i===j||w[i]<=minWeight||w[j]>=maxWeight)continue;
+     if(strictSleeve&&picked[i].equityBucket!==picked[j].equityBucket)continue;
      const newEq=eq+(picked[j].planningExposure.equity-picked[i].planningExposure.equity)/100;
      const newFx=fx+(picked[j].planningExposure.fx-picked[i].planningExposure.fx)/100;
      if(newEq<c.minEq-1e-7||newEq>c.targetEq+1e-7||newFx>c.fx+1e-7)continue;
@@ -374,11 +399,14 @@ function buildPortfolio(c){
    // A preferred equity split must not invalidate a risk-compliant portfolio.
   }
   const finalSleeve=sleeveInfo();
+  if(strictSleeve&&bucketKeys.some(k=>Math.abs(finalSleeve.by[k]-sleevePercent[k])>1e-7))return null;
   return{weights:w,eq,fx,sleeve:finalSleeve};
  }
  const plans=[];
  function choose(iteration,targetCount){
   const picked=[],used=new Set();
+  const quotas=equityOnly?bucketQuotas(targetCount):null;
+  if(equityOnly&&!quotas)return null;
   const add=f=>{picked.push(f);used.add(f.number);};
   const utility=f=>{
    const sameManager=picked.filter(x=>x.manager===f.manager).length;
@@ -400,7 +428,12 @@ function buildPortfolio(c){
   };
   // Geographic distribution is a soft preference; user-selected risk caps always prevail.
   while(picked.length<targetCount){
+   const bucketCounts={core:0,sector:0,niche:0};
+   for(const f of picked)if(f.equityBucket)bucketCounts[f.equityBucket]++;
+   const pending=equityOnly?bucketKeys.filter(k=>bucketCounts[k]<quotas[k]):[];
+   const requiredBucket=equityOnly?pending.sort((a,b)=>(quotas[b]-bucketCounts[b])-(quotas[a]-bucketCounts[a])||(sleevePercent[b]-sleevePercent[a]))[0]:null;
    const candidate=viable.filter(f=>!used.has(f.number)
+    &&(!equityOnly||f.equityBucket===requiredBucket)
     &&(!["israelequity","foreignequity"].includes(f.asset)||f.equityBucket)
     &&(!f.equityBenchmark||!picked.some(x=>x.equityBenchmark===f.equityBenchmark))
      // One focused fund per exposure theme: prevents two financial-sector
@@ -441,7 +474,7 @@ function buildPortfolio(c){
    if(plan){plan.targetCount=count;plans.push(plan);}
   }
  }
- if(!plans.length)throw Error("לא נמצא תיק העומד בטווח החשיפה למניות, במגבלת המט״ח ובמספר הקרנות המבוקש"+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
+ if(!plans.length)throw Error((equityOnly?"לא נמצא שילוב שעומד בחלוקה המחייבת של "+sleevePercent.core+"% מדדים מובילים, "+sleevePercent.sector+"% סקטורים ו-"+sleevePercent.niche+"% נישות, תוך מניעת כפילויות. ":"לא נמצא תיק העומד בטווח החשיפה למניות, במגבלת המט״ח ובמספר הקרנות המבוקש")+(c.countMode==="flex"?" או בטווח הגמיש (עד שתי קרנות לכל כיוון)":"")+". אפשר להרחיב אפיקים מותרים או לעדכן את מגבלות החשיפה.");
  // When flexible, deviations require a meaningful quality improvement.
  plans.sort((a,b)=>(b.quality-3*Math.abs(b.picked.length-c.n))-(a.quality-3*Math.abs(a.picked.length-c.n)));
  return plans[0];
