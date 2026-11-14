@@ -161,7 +161,7 @@ function equityBucket(f){
   if(/אנרג|ENERGY|OIL|נפט|גז טבעי/.test(n))return"energy";
   if(/תעשיי|INDUSTRIAL/.test(n))return"industrials";
   if(/תשתיות|INFRASTRUCTURE/.test(n))return"infrastructure";
-  if(/טכנולוג|TECHNOLOGY|TECH\\b|SOFTWARE|תוכנה/.test(n))return"technology";
+  if(/טכנולוג|TECHNOLOGY|TECH\b|SOFTWARE|תוכנה/.test(n))return"technology";
   if(/צריכה|CONSUMER/.test(n))return"consumer";
   if(/COMMUNICATION|תקשורת/.test(n))return"communications";
   if(/UTILITIES|שירותים ציבוריים/.test(n))return"utilities";
@@ -173,9 +173,9 @@ function equityBucket(f){
  function equityBenchmark(f){
   if(f.indexKey)return f.indexKey;
   if(!f.equityBucket)return null;
-  const n=String(f.name||"").toUpperCase().replace(/S\\s*&\\s*P/g,"SP").replace(/S&P/g,"SP");
-  const match=n.match(/\\bSP\\s*(?:500\\s*)?(FINANCIAL|INDUSTRIAL|TECHNOLOGY|ENERGY|HEALTH(?:CARE)?|REAL\\s*ESTATE|CONSUMER\\s*STAPLES|CONSUMER\\s*DISCRETIONARY|MATERIALS|UTILITIES|COMMUNICATION\\s*SERVICES)\\b/);
-  return match?"SP_SECTOR_"+match[1].replace(/\\s+/g,"_"):null;
+  const n=String(f.name||"").toUpperCase().replace(/S\s*&\s*P/g,"SP").replace(/S&P/g,"SP");
+  const match=n.match(/\bSP\s*(?:500\s*)?(FINANCIAL|INDUSTRIAL|TECHNOLOGY|ENERGY|HEALTH(?:CARE)?|REAL\s*ESTATE|CONSUMER\s*STAPLES|CONSUMER\s*DISCRETIONARY|MATERIALS|UTILITIES|COMMUNICATION\s*SERVICES)\b/);
+  return match?"SP_SECTOR_"+match[1].replace(/\s+/g,"_"):null;
  }
  function isTechnologyTilt(f){
   const name=String(f.name||"").toUpperCase();
