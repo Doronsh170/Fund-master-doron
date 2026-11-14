@@ -56,7 +56,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <label>גישה לפיזור<select id="diversify"><option value="wide">פיזור בין קרנות ומנהלים</option><option value="index">פיזור בתוך המדד</option><option value="core">ליבה וקרנות ממוקדות</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
 <label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
 <label>במה להתמקד בבחירת הקרנות?<select id="selection"><option value="balanced">איזון בין השלושה</option><option value="returns">תשואה</option><option value="volatility">סיכון (סטיית תקן)</option><option value="fees">דמי ניהול</option></select></label>
-</div><p class="note">גישת הניהול מחייבת בחירת קרנות מהסוג שנבחר: פסיבי כולל קרנות סל וקרנות מחקות בלבד; אקטיבי אינו כולל קרנות סל וקרנות מחקות; שילוב מאפשר את שתיהן. גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
+</div><p class="note">גישת הניהול מחייבת בחירת קרנות מהסוג שנבחר: פסיבי כולל רק קרנות סל או קרנות מחקות שזוהו לפי נתוני מאיה; אקטיבי כולל רק קרנות שזוהו כאקטיביות; שילוב מאפשר את שתיהן. קרן שסיווגה אינו מאומת לא תיכלל בתיק. גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
 <p class="note">סמן את האפיקים שמהם מותר לסוכן לבחור קרנות. סימון אפיק אינו מחייב לשלב אותו בתיק. ההרכב ייקבע על פי דירוג הקרנות, העדפות היועץ ומגבלות הסיכון. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
 <div class="categories" id="categories">
 <label><input type="checkbox" value="money">קרנות כספיות</label>
@@ -189,9 +189,22 @@ function indexBreadthBonus(f){
  if(f.asset!=="israelequity"&&f.asset!=="foreignequity")return 0;
  return ({TA125:3.5,TA90:1,SP500:3.5,RUSSELL2000:2.5,MSCIWORLD:3.5,MSCIEM:2.5,NASDAQCOMPOSITE:2.5})[f.indexKey]||0;
 }
+// Classify management style using verified MAYA fund characteristics, not names or marketing labels.
+function managementStyle(f){
+ const p=performance[f.number],metadata=p?.sourceSnapshot?.metadata;
+ const sourceApi=String(p?.sourceApi||f.sourceApi||"");
+ const type=String(metadata?.fundType||f.type||"").trim();
+ const features=Array.isArray(metadata?.features)?metadata.features:[];
+ const activeFeatures=features.filter(x=>x&&x.enabled===true&&typeof x.title==="string").map(x=>x.title);
+ const tracker=activeFeatures.some(title=>/קרן\s+מחקה/.test(title));
+ const exchangeTraded=sourceApi.includes("/funds/etf/")||type==="קרן סל";
+ if(tracker||exchangeTraded)return "passive";
+ if(!metadata||!sourceApi.includes("/funds/mutual/"))return "unknown";
+ return "active";
+}
 function advisor(){return{style:$("style").value,diversify:$("diversify").value,bond:$("bond").value,selection:$("selection").value};}
 function preferenceScore(f,p){
- const passive=f.type==="קרן סל"||f.type==="קרן מחקה";
+ const passive=managementStyle(f)==="passive";
  const weights=p.selection==="returns"?[.60,.30,.10]:p.selection==="volatility"?[.30,.60,.10]:p.selection==="fees"?[.30,.30,.40]:[.40,.40,.20];
  let bonus=p.style==="passive"?(passive?9:-9):p.style==="active"?(passive?-9:9):0;
  if(f.asset==="gov")bonus+=p.bond==="gov"?24:p.bond==="corp"?-24:0;
@@ -215,7 +228,7 @@ function buildPortfolio(c){
   &&!/(גידור|ממונפ|אסטרטג|קרן סגורה|הייטק)/.test(f.type+" "+f.category+" "+f.name)));
  // Missing ranking data must not silently become a fabricated score.
  const viable=universe.filter(f=>c.allowed.includes(f.asset)&&f.score!==null
-  &&(c.advisor.style==="blend"||(c.advisor.style==="passive"?(f.type==="קרן סל"||f.type==="קרן מחקה"):(f.type!=="קרן סל"&&f.type!=="קרן מחקה")))
+  &&(c.advisor.style==="blend"?managementStyle(f)!=="unknown":managementStyle(f)===c.advisor.style)
   &&(!["israelequity","foreignequity"].includes(f.asset)||equityRegion(f)));
  for(const f of viable){f.equityBucket=equityBucket(f);f.equityRegion=equityRegion(f);}
  for(const f of viable)f.adjustedScore=preferenceScore(f,c.advisor);
