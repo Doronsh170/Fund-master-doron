@@ -38,6 +38,21 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 .methodology>summary{font-size:19px;font-weight:750;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}.methodology>summary::-webkit-details-marker{display:none}.methodology>summary:after{content:"+";font-size:23px;font-weight:500;color:#205b94}.methodology[open]>summary:after{content:"−"}.methodology-content{padding-top:14px}
 .resolve-block{background:#f4f8fc;border:1px solid #c5d2e1;border-radius:10px;padding:13px;margin-top:12px}.resolve-block[hidden]{display:none}.resolve-block summary{cursor:pointer;font-weight:750}.resolve-block .actions button{font-size:13px;padding:8px 12px}.resolve-block .note{margin:9px 0}
 .fx-warning{border:1px solid #d9b36f;border-radius:10px;background:#fff8eb;padding:12px;margin:12px 0}.fx-warning[hidden]{display:none}.fx-warning summary{cursor:pointer;font-weight:700}.fx-warning .note{margin:9px 0 0}
+
+.portfolio-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}
+.portfolio-tabs button{background:#e6eff8;color:#183752}
+.portfolio-tabs button[aria-selected="true"]{background:#205b94;color:white}
+.portfolio-pane[hidden]{display:none!important}
+.exposure-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.exposure-chart{border:1px solid #dfe5ee;border-radius:12px;padding:15px}
+.exposure-chart h3{margin:0 0 12px;font-size:16px}
+.exposure-visual{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.exposure-visual svg{width:156px;height:156px;flex:none}
+.exposure-legend{display:grid;gap:7px;font-size:13px}
+.exposure-legend div{display:flex;align-items:center;gap:7px}
+.exposure-swatch{width:12px;height:12px;border-radius:2px;flex:none}
+@media(max-width:700px){.exposure-grid{grid-template-columns:1fr}}
+@media print{.portfolio-tabs{display:none!important}.portfolio-pane[hidden]{display:block!important}}
 </style></head>
 <body class="locked"><div id="agent-login"><form class="login-panel" id="agent-login-form"><h1>כניסה לסוכן בניית התיקים</h1><p class="note">יש להזין קוד גישה כדי לפתוח את הסוכן.</p><label for="agent-pin">קוד גישה</label><input id="agent-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" required aria-describedby="agent-login-error"><button type="submit">כניסה</button><p id="agent-login-error" class="error" role="alert" hidden></p></form></div><header><div><a href="./">מאתר הקרנות</a> · <a href="fund-ranking.html">דירוג קרנות</a><h1>סוכן לבניית תיק קרנות</h1><p>בניית תיק מחקרי לפי סיכון, מספר קרנות, תקרות חשיפה למניות ולמט״ח, ואפיקי השקעה. נתוני הקרנות מגיעים ממאיה בלבד.</p></div></header>
 <main>
@@ -485,6 +500,38 @@ function buildPortfolio(c){
  plans.sort((a,b)=>(b.quality-3*Math.abs(b.picked.length-c.n))-(a.quality-3*Math.abs(a.picked.length-c.n)));
  return plans[0];
 }
+
+function pieMarkup(title,rows,note){
+ const values=rows.filter(x=>Number.isFinite(x.value)&&x.value>0);
+ const total=values.reduce((n,x)=>n+x.value,0);
+ if(!total)return '<article class="exposure-chart"><h3>'+esc(title)+'</h3><p class="note">אין נתונים זמינים לפילוח.</p></article>';
+ const palette=["#235e96","#1b9da5","#d7963f","#8c73c4","#6f995a","#d47683","#6a9ec1","#a0acb9"];
+ let angle=-Math.PI/2;
+ const paths=values.map((x,i)=>{
+  const span=2*Math.PI*x.value/total,from=angle;angle+=span;
+  if(span>=2*Math.PI-1e-6)return '<circle cx="90" cy="90" r="78" fill="'+palette[i%palette.length]+'"/>';
+  const x1=90+78*Math.cos(from),y1=90+78*Math.sin(from),x2=90+78*Math.cos(angle),y2=90+78*Math.sin(angle);
+  return '<path d="M90 90 L'+x1.toFixed(3)+' '+y1.toFixed(3)+' A78 78 0 '+(span>Math.PI?1:0)+' 1 '+x2.toFixed(3)+' '+y2.toFixed(3)+' Z" fill="'+palette[i%palette.length]+'"><title>'+esc(x.label)+': '+(x.value/total*100).toFixed(1)+'%</title></path>';
+ }).join("");
+ const legend=values.map((x,i)=>'<div><span class="exposure-swatch" style="background:'+palette[i%palette.length]+'"></span>'+esc(x.label)+' '+(x.value/total*100).toFixed(1)+'%</div>').join("");
+ return '<article class="exposure-chart"><h3>'+esc(title)+'</h3><div class="exposure-visual"><svg viewBox="0 0 180 180" role="img" aria-label="'+esc(title)+'">'+paths+'</svg><div class="exposure-legend">'+legend+'</div></div><p class="note">'+esc(note||"")+'</p></article>';
+}
+function exposureMarkup(plan,picked,weights){
+ const assets=new Map();
+ picked.forEach((f,i)=>assets.set(f.asset,(assets.get(f.asset)||0)+weights[i]));
+ const asset=pieMarkup("אפיקי ההשקעה",[...assets].map(([name,value])=>({label:categoryNames[name]||name,value})),"משקל קרנות לפי סיווג, לא לפי החזקות בפועל");
+ const geo=pieMarkup("ישראל מול חו״ל ברכיב המנייתי",[{label:"ישראל",value:plan.sleeve.regions.IL},{label:"חו״ל",value:plan.sleeve.regions.FOREIGN}],"לפי סיווג הקרנות המנייתיות");
+ const buckets=pieMarkup("מדדים מובילים, סקטורים ונישות",[{label:"ליבה",value:plan.sleeve.by.core},{label:"סקטורים",value:plan.sleeve.by.sector},{label:"נישות",value:plan.sleeve.by.niche}],"לפי סיווג אסטרטגיית הקרנות ולא לפי החזקות בפועל");
+ const reported=(kind,title)=>{
+  if(picked.some(f=>f.reported?.[kind]?.measurementType!=="actual"))
+   return '<article class="exposure-chart"><h3>'+esc(title)+'</h3><p class="note">אין נתוני חשיפה בפועל מאומתים לכל הקרנות בתיק. לא מוצג פאי המבוסס על אומדן.</p></article>';
+  const n=picked.reduce((sum,f,i)=>sum+weights[i]*f.reported[kind].percent/100,0);
+  if(n<0||n>100)return '<article class="exposure-chart"><h3>'+esc(title)+'</h3><p class="note">החשיפה המדווחת '+n.toFixed(2)+'% אינה מאפשרת פאי 0% עד 100%.</p></article>';
+  return pieMarkup(title,[{label:"חשיפה מדווחת",value:n},{label:"ללא חשיפה",value:100-n}],"חשיפות מדווחות עשויות להיות ממועדי דיווח שונים");
+ };
+ return '<p class="note">אפיקי השקעה, חלוקה גיאוגרפית וסיווג מנייתי מוצגים לפי משקל הקרנות. חשיפה בפועל למניות, אג״ח ומט״ח מוצגת רק כאשר קיימים נתונים מאומתים לכל קרנות התיק. מט״ח עשוי לחפוף למניות ולאג״ח ולכן אינו מצורף לאותו פאי.</p><div class="exposure-grid">'
+  +asset+geo+buckets+reported("equity","חשיפה למניות בפועל")+reported("bond","חשיפה לאג״ח בפועל")+reported("fx","חשיפה למט״ח בפועל")+'</div>';
+}
 function showError(text){latestShareText="";$("share-actions").hidden=true;$("message").className="error";$("message").textContent=text;$("portfolio").innerHTML="";$("resolve-block").hidden=false;$("resolve-block").open=true;}
 function renderPortfolio(plan,c){
  $("resolve-block").hidden=true;$("resolve-block").open=false;
@@ -514,7 +561,8 @@ function renderPortfolio(plan,c){
   return picked.reduce((v,f,i)=>v+weights[i]*f.reported[kind].percent/100,0);
  };
  const actualEq=reportedPortfolio("equity"),actualFx=reportedPortfolio("fx"),actualBond=reportedPortfolio("bond");
- const html='<div class="summary">'
+ const exposureHtml=exposureMarkup(plan,picked,weights);
+ const html='<div class="portfolio-tabs" role="tablist" aria-label="בחירת תצוגה"><button type="button" role="tab" data-view="details" aria-selected="true">הרכב התיק</button><button type="button" role="tab" data-view="exposure" aria-selected="false">פילוח חשיפות</button></div><div class="portfolio-pane" data-pane="details"><div class="summary">'
   + '<div class="metric"><small>סכום התיק</small><strong>'+currency(c.amount)+'</strong></div>'
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
   +'<div class="metric"><small>מניות, חשיפה לחישוב</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
@@ -537,7 +585,7 @@ function renderPortfolio(plan,c){
   +lines.map(f=>'<tr><td><a target="_blank" rel="noopener noreferrer" href="'+esc(f.source)+'">'+esc(f.name)+'</a><small>'+esc(f.manager)+' · '+esc(f.number)+'</small></td><td>'+esc(categoryNames[f.asset])+'</td><td class="num">'+fmt(f.weight)+'</td><td class="num">'+currency(f.allocation)+'</td><td>'+esc(f.profile)+'</td><td class="num">'+fmt(f.eq)+'</td><td class="num">'+fmt(f.fx)+'</td><td class="num">'+fmt(f.ret)+'</td><td class="num">'+fmt(f.stdDev)+'</td><td class="num">'+fmt(f.fee)+'</td></tr>').join("")
   +'</tbody></table></div>'
   +'<p class="warning">גילוי נאות: התיק נבנה באמצעות מודל ממוחשב על בסיס נתונים פומביים וקריטריונים כמותיים. המידע מיועד למחקר ולהמחשה בלבד ואינו מהווה ייעוץ השקעות, שיווק השקעות או המלצה לפעולה. המודל אינו בוחן התאמה אישית לצורכי המשקיע. השקעה כרוכה בסיכון, תשואות עבר אינן מעידות על תשואות עתידיות.</p>';
- $("portfolio").innerHTML=html;
+ $("portfolio").innerHTML=html+'</div><div class="portfolio-pane" data-pane="exposure" hidden>'+exposureHtml+'</div>';
  const advisorChoices=["style","diversify","bond","selection"].map(id=>$(id).selectedOptions[0].text);
  latestShareText=[
   "*תיק קרנות, סיכום מחקרי*",
@@ -558,6 +606,13 @@ function renderPortfolio(plan,c){
  ].join("\n");
  $("share-actions").hidden=false;
 }
+$("portfolio").addEventListener("click",event=>{
+ const tab=event.target.closest("button[data-view]");
+ if(!tab)return;
+ const selected=tab.dataset.view;
+ for(const button of $("portfolio").querySelectorAll("button[data-view]"))button.setAttribute("aria-selected",String(button.dataset.view===selected));
+ for(const pane of $("portfolio").querySelectorAll(".portfolio-pane"))pane.hidden=pane.dataset.pane!==selected;
+});
 function updateForeignEquityFx(){
  const level=Number($("risk").value), fxField=$("fx"), fx=Number(fxField.value);
  const restricted=level>=2&&fxField.value!==""&&Number.isFinite(fx)&&fx<10;
