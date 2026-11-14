@@ -21,9 +21,24 @@ jobs:
           const js=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
           assert(js,'Missing script');
           new vm.Script(js,{filename:'portfolio-agent.html'});
-          for(const token of ['exposure','buildPortfolio','riskLevels','requested,allowed','score!==null','sourceVerified','c.eq','c.fx','מגבלות','c.advisor.style===\"passive\"','f.type===\"קרן סל\"','f.type===\"קרן מחקה\"']){
+          for(const token of ['exposure','buildPortfolio','riskLevels','requested,allowed','score!==null','sourceVerified','c.eq','c.fx','מגבלות','function managementStyle','managementStyle(f)===c.advisor.style']){
             assert(js.includes(token),'Missing required guard: '+token);
           }
+          // Functional regression: official MAYA characteristics determine management style.
+          const method=js.match(/function managementStyle\\(f\\)\\{[\\s\\S]*?\\n\\}\\nfunction advisor/);
+          assert(method,'Missing management style classifier');
+          const fundStyleSource=method[0].replace(/\\nfunction advisor$/,'');
+          const ctx={performance:{
+            '5101506':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5101506',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[{enabled:true,title:'לפי מדיניות השקעותיה הקרן הינה קרן מחקה'}]}}},
+            '5106562':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5106562',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[]}}},
+            '5122957':{sourceApi:'https://maya.tase.co.il/api/v1/funds/etf/5122957',sourceSnapshot:{metadata:{fundType:'קרן סל',features:[]}}}
+          }};
+          vm.createContext(ctx);
+          vm.runInContext(fundStyleSource+';this.classify=managementStyle',ctx);
+          assert.equal(ctx.classify({number:'5101506'}),'passive','MAYA tracker must be passive');
+          assert.equal(ctx.classify({number:'5106562'}),'active','Active mutual must not enter passive portfolios');
+          assert.equal(ctx.classify({number:'5122957'}),'passive','ETF must be passive');
+          assert.equal(ctx.classify({number:'9999999'}),'unknown','Unverified fund must be excluded');
           const link=fs.readFileSync('index.html','utf8');
           assert(link.includes('portfolio-agent.html'),'Builder link missing in index');
           console.log('Portfolio agent syntax, constraints and navigation validated.');
