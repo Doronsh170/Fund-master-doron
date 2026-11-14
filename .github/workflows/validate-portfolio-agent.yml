@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'portfolio-agent.html'
+      - 'portfolio-passive-ids.js'
       - '.github/workflows/validate-portfolio-agent.yml'
   workflow_dispatch:
 jobs:
@@ -24,21 +25,29 @@ jobs:
           for(const token of ['exposure','buildPortfolio','riskLevels','requested,allowed','score!==null','sourceVerified','c.eq','c.fx','מגבלות','function managementStyle','managementStyle(f)===c.advisor.style']){
             assert(js.includes(token),'Missing required guard: '+token);
           }
-          // Functional regression: official MAYA characteristics determine management style.
-          const method=js.match(/function managementStyle\(f\)\{[\s\S]*?\n\}\nfunction advisor/);
-          assert(method,'Missing management style classifier');
-          const fundStyleSource=method[0].replace(/\nfunction advisor$/,'');
-          const ctx={performance:{
-            '5101506':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5101506',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[{enabled:true,title:'לפי מדיניות השקעותיה הקרן הינה קרן מחקה'}]}}},
-            '5106562':{sourceApi:'https://maya.tase.co.il/api/v1/funds/mutual/5106562',sourceSnapshot:{metadata:{fundType:'קרן פתוחה',features:[]}}},
-            '5122957':{sourceApi:'https://maya.tase.co.il/api/v1/funds/etf/5122957',sourceSnapshot:{metadata:{fundType:'קרן סל',features:[]}}}
-          }};
+          // Verify fund-number mapping against the uploaded TASE workbook totals.
+          const mapSrc=fs.readFileSync('portfolio-passive-ids.js','utf8');
+          const ctx={window:{},performance:{}};
           vm.createContext(ctx);
-          vm.runInContext(fundStyleSource+';this.classify=managementStyle',ctx);
-          assert.equal(ctx.classify({number:'5101506'}),'passive','MAYA tracker must be passive');
-          assert.equal(ctx.classify({number:'5106562'}),'active','Active mutual must not enter passive portfolios');
-          assert.equal(ctx.classify({number:'5122957'}),'passive','ETF must be passive');
-          assert.equal(ctx.classify({number:'9999999'}),'unknown','Unverified fund must be excluded');
+          vm.runInContext(mapSrc,ctx);
+          const passive=ctx.window.FUND_PASSIVE_IDS,active=ctx.window.FUND_ACTIVE_IDS;
+          assert.equal(passive.size,849);
+          assert.equal(active.size,1168);
+          assert.equal([...passive].reduce((a,x)=>a+Number(x),0),4357426340);
+          assert.equal([...active].reduce((a,x)=>a+Number(x),0),5977577411);
+          assert.equal([...passive].reduce((a,x,i)=>a+Number(x)*(i+1),0),1853595033335);
+          assert.equal([...active].reduce((a,x,i)=>a+Number(x)*(i+1),0),3503716363308);
+          assert([...passive].every(x=>!active.has(x)),'Fund classified both passive and active');
+          const method=js.match(/function managementStyle\\(f\\)\\{[\\s\\S]*?\\n\\}\\nfunction advisor/);
+          assert(method,'Missing management style classifier');
+          const source=method[0].replace(/\\nfunction advisor$/,'');
+          vm.runInContext(source+';this.classify=managementStyle',ctx);
+          assert.equal(ctx.classify({number:'5101506'}),'passive','Tracking mutual must be passive');
+          assert.equal(ctx.classify({number:'5106562'}),'active','Actively managed fund must be active');
+          assert.equal(ctx.classify({number:'9999999'}),'unknown','Unmapped mutual must not be guessed');
+          ctx.performance['9999999']={sourceApi:'https://maya.tase.co.il/api/v1/funds/etf/9999999',sourceSnapshot:{metadata:{fundType:'קרן סל'}}};
+          assert.equal(ctx.classify({number:'9999999'}),'passive','Verified exchange-traded fund must be passive');
+          assert(js.includes('portfolio-passive-ids.js?v='),'Reference file must be loaded by portfolio agent');
           const link=fs.readFileSync('index.html','utf8');
           assert(link.includes('portfolio-agent.html'),'Builder link missing in index');
           console.log('Portfolio agent syntax, constraints and navigation validated.');
