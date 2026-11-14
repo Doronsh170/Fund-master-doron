@@ -56,7 +56,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <label>גישה לפיזור<select id="diversify"><option value="wide">פיזור בין קרנות ומנהלים</option><option value="index">פיזור בתוך המדד</option><option value="core">ליבה וקרנות ממוקדות</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
 <label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
 <label>במה להתמקד בבחירת הקרנות?<select id="selection"><option value="balanced">איזון בין השלושה</option><option value="returns">תשואה</option><option value="volatility">סיכון (סטיית תקן)</option><option value="fees">דמי ניהול</option></select></label>
-</div><p class="note">גישת הניהול מחייבת בחירת קרנות מהסוג שנבחר: פסיבי כולל רק קרנות סל או קרנות מחקות שזוהו לפי נתוני מאיה; אקטיבי כולל רק קרנות שזוהו כאקטיביות; שילוב מאפשר את שתיהן. קרן שסיווגה אינו מאומת לא תיכלל בתיק. גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
+</div><p class="note">גישת הניהול נקבעת לפי מספר הקרן בקובץ המיפוי של הבורסה: פסיבי כולל קרנות מחקות וקרנות סל, אקטיבי כולל קרנות פתוחות מנוהלות. קרן שאינה במיפוי ואינה קרן סל מאומתת לא תיכלל בתיק. גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
 <p class="note">סמן את האפיקים שמהם מותר לסוכן לבחור קרנות. סימון אפיק אינו מחייב לשלב אותו בתיק. ההרכב ייקבע על פי דירוג הקרנות, העדפות היועץ ומגבלות הסיכון. אם לא נבחר אפיק, כל האפיקים המתאימים לרמת הסיכון יהיו מועמדים.</p>
 <div class="categories" id="categories">
 <label><input type="checkbox" value="money">קרנות כספיות</label>
@@ -191,16 +191,15 @@ function indexBreadthBonus(f){
 }
 // Classify management style using verified MAYA fund characteristics, not names or marketing labels.
 function managementStyle(f){
- const p=performance[f.number],metadata=p?.sourceSnapshot?.metadata;
- const sourceApi=String(p?.sourceApi||f.sourceApi||"");
- const type=String(metadata?.fundType||f.type||"").trim();
- const features=Array.isArray(metadata?.features)?metadata.features:[];
- const activeFeatures=features.filter(x=>x&&x.enabled===true&&typeof x.title==="string").map(x=>x.title);
- const tracker=activeFeatures.some(title=>/קרן\s+מחקה/.test(title));
- const exchangeTraded=sourceApi.includes("/funds/etf/")||type==="קרן סל";
- if(tracker||exchangeTraded)return "passive";
- if(!metadata||!sourceApi.includes("/funds/mutual/"))return "unknown";
- return "active";
+ const id=String(f.number||"");
+ const passive=window.FUND_PASSIVE_IDS,active=window.FUND_ACTIVE_IDS;
+ if(!(passive instanceof Set)||!(active instanceof Set))throw Error("מיפוי הקרנות לא נטען");
+ if(passive.has(id))return "passive";
+ if(active.has(id))return "active";
+ // ETFs outside the open/index-tracking mutual-fund workbook.
+ const p=performance[id],metadata=p?.sourceSnapshot?.metadata;
+ if(metadata&&String(p?.sourceApi||f.sourceApi||"").includes("/funds/etf/"))return "passive";
+ return "unknown";
 }
 function advisor(){return{style:$("style").value,diversify:$("diversify").value,bond:$("bond").value,selection:$("selection").value};}
 function preferenceScore(f,p){
@@ -502,11 +501,13 @@ async function initializeAgent(){
  try{
   adjustRisk();
   const v=Date.now();
+  await loadScript("portfolio-passive-ids.js?v="+v);
   await loadScript("maya-catalog-data.js?v="+v);
   for(let i=0;i<16;i++)await loadScript("maya-performance/part-"+String(i).padStart(2,"0")+".js?v="+v);
   await loadScript("maya-performance-data.js?v="+v);
   const c=window.FUND_MAYA_CATALOG,p=window.FUND_PERFORMANCE_DATA;
   if(!Array.isArray(c)||!p?.report?.sourceVerified||!p.funds||c.length!==p.report.listCount)throw Error("מאגר מאיה אינו מאומת, לא ניתן להציע תיק.");
+  if(!(window.FUND_PASSIVE_IDS instanceof Set)||window.FUND_PASSIVE_IDS.size!==849||!(window.FUND_ACTIVE_IDS instanceof Set)||window.FUND_ACTIVE_IDS.size!==1168)throw Error("מיפוי סיווג הקרנות מהבורסה לא נטען במלואו.");
   catalog=c;performance=p.funds;snapshot=p.report;
   $("build").disabled=false;$("build").textContent="בנה תיק קרנות";
   $("message").textContent="הנתונים נטענו ואומתו: "+catalog.length.toLocaleString("he-IL")+" קרנות ממאיה. הגדר את הפרמטרים ולחץ ״בנה תיק״.";
