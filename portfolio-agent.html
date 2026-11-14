@@ -140,6 +140,9 @@ function equityBucket(f){
   if(f.indexKey&&["SP500","NASDAQ100","TA35","TA125"].includes(f.indexKey))return"core";
   if(/סייבר|CYBER|ביוטק|BIOTECH|רובוט|ROBOT|QUANTUM|קוונט|חלל|SPACE|URANIUM|אורניום|NUCLEAR|גרעין|SEMICONDUCT|שבבים|בינה מלאכותית|ARTIFICIAL INTELLIGENCE|ביטחוני|DEFENSE|DEFENCE|גיימינג|GAMING|בלוקצ|BLOCKCHAIN|קנאביס|ענן|CLOUD|REGIONAL BANK|בנקים אזורי|בנקים אזוריי/i.test(name))return"niche";
   if(/טכנולוג|TECHNOLOGY|TECH\b|בריאות|HEALTH|פיננס|FINANC|בנקים|BANK|אנרג|ENERGY|נדל|REAL ESTATE|תשתיות|INFRASTRUCTURE|תעשיי|INDUSTRIAL|צריכה|CONSUMER|COMMUNICATION|תקשורת|UTILITIES|חומרי גלם|MATERIALS/i.test(name))return"sector";
+  // Active broad-equity strategies can serve as core even without a tracking index.
+  // Equity asset classification is necessary but is not proof of diversified holdings.
+  if(managementStyle(f)==="active"&&/מניות|EQUITY|EQUITIES|STOCKS|GLOBAL|WORLD|ארה["״']?ב|ישראל|חו["״']?ל|INTERNATIONAL/i.test(name+" "+f.category))return"core";
   return null;
  }
  function equityRegion(f){
@@ -171,6 +174,9 @@ function equityBucket(f){
  // Only assign a benchmark identity when the index is unambiguous from the fund name.
  // SP Financial and S&P Financial are the same benchmark, regardless of manager.
  function equityBenchmark(f){
+  // An active fund does not have a tracking benchmark merely because its name
+  // resembles a market index; preserve duplicate rules for actual trackers.
+  if(managementStyle(f)==="active")return null;
   if(f.indexKey)return f.indexKey;
   if(!f.equityBucket)return null;
   const name=String(f.name||"").toUpperCase();
