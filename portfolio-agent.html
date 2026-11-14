@@ -53,7 +53,7 @@ body.locked>header,body.locked>main{display:none}body:not(.locked)>#agent-login{
 <p id="riskExplanation" class="note"></p><details id="foreign-equity-fx-warning" class="fx-warning" hidden><summary>מגבלת מט״ח נמוכה מ-10%, מניות בחו״ל אינן זמינות</summary><p class="note">בתקרת מט״ח נמוכה מ-10%, הסוכן אינו מאפשר בחירת קרנות מניות בחו״ל. אפשר להגדיל את התקרה ל-10% לפחות, בכפוף לרמת הסיכון, או לבחור מניות בישראל ואפיקים אחרים. גם לאחר הגדלת התקרה, כל קרן נבדקת לפי פרופיל החשיפה שלה.</p></details><p class="note">מספר קרנות מדויק מחייב את המספר שבחרת. במצב גמיש הסוכן יבדוק עד שתי קרנות פחות או יותר, וישנה את המספר רק כאשר נמצא הרכב בעל דירוג משוקלל טוב יותר, תוך שמירה על כל מגבלות החשיפה.</p>
 <fieldset><legend>אפיון מקצועי של היועץ</legend><div class="form-grid">
 <label>גישה לניהול<select id="style"><option value="blend">שילוב אקטיבי ופסיבי</option><option value="active">אקטיבי</option><option value="passive">פסיבי</option></select></label>
-<label>גישה לפיזור<select id="diversify"><option value="core">ליבה וקרנות ממוקדות</option><option value="wide">פיזור רחב</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
+<label>גישה לפיזור<select id="diversify"><option value="wide">פיזור בין קרנות ומנהלים</option><option value="index">פיזור בתוך המדד</option><option value="core">ליבה וקרנות ממוקדות</option><option value="focus">מיקוד בדירוג גבוה</option></select></label>
 <label>גישת אג"ח<select id="bond"><option value="blend">שילוב</option><option value="gov">ממשלתי</option><option value="corp">קונצרני</option></select></label>
 <label>במה להתמקד בבחירת הקרנות?<select id="selection"><option value="balanced">איזון בין השלושה</option><option value="returns">תשואה</option><option value="volatility">סיכון (סטיית תקן)</option><option value="fees">דמי ניהול</option></select></label>
 </div><p class="note">גישת הדירוג משנה את משקל התשואה, סטיית התקן ודמי הניהול בבחירת הקרנות והמשקולות, בכפוף למגבלות הסיכון. אין מדד עקביות תשואות.</p></fieldset><fieldset><legend>אפיקי השקעה מותרים בתיק</legend>
@@ -183,6 +183,12 @@ function rankCandidates(funds){
  }
  return funds;
 }
+// A modest breadth preference is relevant only for index-based equity funds.
+// It never overrides hard risk caps or forces a specific index.
+function indexBreadthBonus(f){
+ if(f.asset!=="israelequity"&&f.asset!=="foreignequity")return 0;
+ return ({TA125:3.5,TA90:1,SP500:3.5,RUSSELL2000:2.5,MSCIWORLD:3.5,MSCIEM:2.5,NASDAQCOMPOSITE:2.5})[f.indexKey]||0;
+}
 function advisor(){return{style:$("style").value,diversify:$("diversify").value,bond:$("bond").value,selection:$("selection").value};}
 function preferenceScore(f,p){
  const passive=f.type==="קרן סל"||f.type==="קרן מחקה";
@@ -228,7 +234,7 @@ function buildPortfolio(c){
   const low=Math.min(...scores),high=Math.max(...scores);
   const strengths=scores.map(score=>{
    const relative=high===low?.5:(score-low)/(high-low);
-   if(mode==="wide")return 1+0.25*relative;
+   if(mode==="wide"||mode==="index")return 1+0.25*relative;
    if(mode==="focus")return Math.exp(2.2*relative);
    return Math.exp(.8*relative);
   });
@@ -313,11 +319,11 @@ function buildPortfolio(c){
    const sameAsset=picked.filter(x=>x.asset===f.asset).length;
    const noise=((f.number.split("").reduce((t,v)=>t+Number(v),0)*31+iteration*19)%53)/53;
    const riskWeight=iteration%5===0?0.75:iteration%5===1?0.3:iteration%5===2?1.2:iteration%5===3?0.5:1.6;
-   const dispersion=c.advisor.diversify==="wide"?2.8:c.advisor.diversify==="focus"?.05:1;
+   const dispersion=["wide","index"].includes(c.advisor.diversify)?2.8:c.advisor.diversify==="focus"?.05:1;
    const projectedEq=(picked.reduce((total,x)=>total+x.exposure.equity,0)+f.exposure.equity)/(picked.length+1);
    const riskFitPenalty=(.6+(iteration%4)*.2)*Math.abs(projectedEq-c.targetEq);
    const coreBonus=c.eq<50?(f.equityBucket==="core"?14:f.equityBucket?-10:0):0;
-   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty+coreBonus
+   return f.adjustedScore*.45-riskWeight*riskCost(f)*6-riskFitPenalty+coreBonus+(c.advisor.diversify==="index"?indexBreadthBonus(f):0)
      -dispersion*(7*sameManager+6*sameGroup+3*sameAsset)+noise*(iteration%9)*1.5;
   };
   // Geographic distribution is a soft preference; user-selected risk caps always prevail.
@@ -334,16 +340,17 @@ function buildPortfolio(c){
   const allocated=allocate(picked,iteration);
   if(!allocated)return null;
   const {weights,eq,fx,sleeve}=allocated;
-  const spread=c.advisor.diversify==="wide"?4:c.advisor.diversify==="focus"?.05:1;
+  const spread=["wide","index"].includes(c.advisor.diversify)?4:c.advisor.diversify==="focus"?.05:1;
   const bondCorp=picked.reduce((t,f,i)=>t+(f.asset==="corp"?weights[i]:0),0);
   const bondGov=picked.reduce((t,f,i)=>t+(f.asset==="gov"?weights[i]:0),0);
   const bondTotal=bondCorp+bondGov;
   const bondAlignment=bondTotal===0?0:c.advisor.bond==="corp"?14*(bondCorp-bondGov)/bondTotal:c.advisor.bond==="gov"?14*(bondGov-bondCorp)/bondTotal:0;
   const concentration=weights.reduce((total,w)=>total+(w/100)**2,0);
-  const concentrationPreference=c.advisor.diversify==="wide"?-50*concentration:c.advisor.diversify==="focus"?10*concentration:0;
+  const concentrationPreference=["wide","index"].includes(c.advisor.diversify)?-50*concentration:c.advisor.diversify==="focus"?10*concentration:0;
+  const breadthPreference=c.advisor.diversify==="index"?picked.reduce((total,f,i)=>total+indexBreadthBonus(f)*weights[i]/100,0):0;
   const quality=picked.reduce((t,f,i)=>t+f.adjustedScore*weights[i]/100,0)
    +spread*(new Set(picked.map(f=>f.asset)).size*1.6+new Set(picked.map(f=>f.manager)).size)
-   +bondAlignment+concentrationPreference-3*Math.abs(eq-c.targetEq)-(sleeve.total?10*sleeve.mismatch:0)-40*sleeve.geoMismatch;
+   +bondAlignment+concentrationPreference+breadthPreference-3*Math.abs(eq-c.targetEq)-(sleeve.total?10*sleeve.mismatch:0)-40*sleeve.geoMismatch;
   return{picked,weights,eq,fx,sleeve,quality};
  }
  const counts=c.countMode==="flex"
@@ -404,7 +411,7 @@ function renderPortfolio(plan,c){
   +'<p class="note">התאמת החשיפה לרמת הסיכון: טווח עבודה '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' לפי פרופילי החשיפה המרבית של הקרנות. אין להסיק מכך את שיעור המניות בפועל, וסיכוני אג״ח ומח״מ אינם מכומתים.</p>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
   +'<p class="note">הרכב אפיקי אג״ח ישירים: קונצרני '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="corp"?weights[i]:0),0))+' מהתיק; ממשלתי '+fmt(picked.reduce((sum,f,i)=>sum+(f.asset==="gov"?weights[i]:0),0))+' מהתיק. קרנות אג״ח כללי וקרנות אג״ח בחו״ל מוצגות בנפרד ואינן משויכות אוטומטית לאחת הקבוצות.</p>'
-  +'<p class="note">סגנון פיזור: '+(c.advisor.diversify==="wide"?"פיזור רחב, העדפה למנהלים וקבוצות סיווג מגוונים ומשקולות מאוזנות":c.advisor.diversify==="focus"?"תיק ממוקד, העדפה לקרנות בדירוג גבוה ומשקולות מרוכזות יותר":"פיזור ליבה עם קרנות ממוקדות")+'. אין מדידה של חפיפת החזקות בפועל.</p>'
+  +'<p class="note">סגנון פיזור: '+(c.advisor.diversify==="wide"?"פיזור בין קרנות ומנהלים, העדפה למנהלים וקבוצות סיווג מגוונים ומשקולות מאוזנות":c.advisor.diversify==="index"?"פיזור בתוך המדד, העדפה מתונה למדדי מניות רחבים כאשר דירוג הקרנות דומה, לצד פיזור בין מנהלים":c.advisor.diversify==="focus"?"תיק ממוקד, העדפה לקרנות בדירוג גבוה ומשקולות מרוכזות יותר":"פיזור ליבה עם קרנות ממוקדות")+'. אין מדידה של חפיפת החזקות בפועל.</p>'
   +'<p class="note">סטיית תקן מדווחת ברמת הקרן ולא מחושבת כסטיית התקן של התיק. מדידת סיכון תיק מחייבת גם מתאמים בין הקרנות.</p>'
   +'<p class="note">המשקלים נגזרים מהדירוג היחסי של הקרנות ונכפפים למגבלות החשיפה, מינימום 5% ומקסימום 40% לקרן. רמת סיכון מחקרית: '+c.level+' ('+c.risk.name+'). אחוזי המניות והמט״ח הם תקרות שמרניות, לא חשיפות בפועל. דמי ניהול מוצגים בנפרד, תשואת הקרן המדווחת כבר משקפת את דמי הניהול.</p>'
   +'<div class="table-scroll"><table><thead><tr><th>קרן</th><th>אפיק</th><th class="num">משקל</th><th class="num">סכום השקעה (₪)</th><th>פרופיל</th><th class="num">תקרת מניות</th><th class="num">תקרת מט״ח</th><th class="num">12 חודשים</th><th class="num">סטיית תקן</th><th class="num">דמי ניהול</th></tr></thead><tbody>'
