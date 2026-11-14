@@ -402,9 +402,9 @@ function renderPortfolio(plan,c){
   +'<div class="metric"><small>קרנות בתיק</small><strong>'+picked.length+'</strong><small>'+(c.countMode==='flex'?'יעד '+c.n+' (גמיש)':'מספר מדויק')+'</small></div>'
   +'<div class="metric"><small>מניות, תקרה משוקללת</small><strong>'+fmt(eq)+'</strong><small>טווח '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' · תקרה '+fmt(c.eq)+'</small></div>'
   +'<div class="metric"><small>מט״ח, תקרה משוקללת</small><strong>'+fmt(fx)+'</strong><small>מגבלה '+c.fx+'%</small></div>'
-  +'<div class="metric"><small>מניות, נתון מדווח</small><strong>'+fmt(actualEq)+'</strong><small>'+(actualEq===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
-  +'<div class="metric"><small>מט״ח, נתון מדווח</small><strong>'+fmt(actualFx)+'</strong><small>'+(actualFx===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
-  +'<div class="metric"><small>אג״ח, נתון מדווח</small><strong>'+fmt(actualBond)+'</strong><small>'+(actualBond===null?'אין נתון מאומת לכל הקרנות':'מבוסס תאריכי מדידה שונים')+'</small></div>'
+  +(actualEq===null?'':'<div class="metric"><small>מניות, נתון מדווח</small><strong>'+fmt(actualEq)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
+  +(actualFx===null?'':'<div class="metric"><small>מט״ח, נתון מדווח</small><strong>'+fmt(actualFx)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
+  +(actualBond===null?'':'<div class="metric"><small>אג״ח, נתון מדווח</small><strong>'+fmt(actualBond)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<p class="note">חלוקת קרנות הרכיב המנייתי לפי משקל קרנות מנייתיות בתיק: מדדים מובילים '+fmt(plan.sleeve?.total?plan.sleeve.by.core/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?60:100)+'%), סקטורים '+fmt(plan.sleeve?.total?plan.sleeve.by.sector/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?30:0)+'%), נישות '+fmt(plan.sleeve?.total?plan.sleeve.by.niche/plan.sleeve.total*100:0)+' (יעד '+(c.eq>=50?10:0)+'%). הסיווג לפי שם הקרן והמדד המזוהה, ואינו מדידת החזקות בפועל.</p>'
   +'<p class="note">פיזור גיאוגרפי של רכיב הקרנות המנייתיות: ארה״ב '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.US/plan.sleeve.regionTotal:0)+' (יעד 60%), ישראל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.IL/plan.sleeve.regionTotal:0)+' (יעד 40%). הזיהוי מבוסס על שם הקרן וסיווגה, ולא על פירוט אחזקות. סטייה של עד 5 נקודות אחוז מותרת עקב משקולות הקרנות.</p>'
