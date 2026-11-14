@@ -38,9 +38,9 @@ jobs:
           assert.equal([...passive].reduce((a,x,i)=>a+Number(x)*(i+1),0),1853595033335);
           assert.equal([...active].reduce((a,x,i)=>a+Number(x)*(i+1),0),3503716363308);
           assert([...passive].every(x=>!active.has(x)),'Fund classified both passive and active');
-          const method=js.match(/function managementStyle\\(f\\)\\{[\\s\\S]*?\\n\\}\\nfunction advisor/);
+          const method=js.match(/function managementStyle\(f\)\{[\s\S]*?\n\}\nfunction advisor/);
           assert(method,'Missing management style classifier');
-          const source=method[0].replace(/\\nfunction advisor$/,'');
+          const source=method[0].replace(/\nfunction advisor$/,'');
           vm.runInContext(source+';this.classify=managementStyle',ctx);
           assert.equal(ctx.classify({number:'5101506'}),'passive','Tracking mutual must be passive');
           assert.equal(ctx.classify({number:'5106562'}),'active','Actively managed fund must be active');
