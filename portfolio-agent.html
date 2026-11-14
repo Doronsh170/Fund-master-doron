@@ -395,7 +395,7 @@ function buildPortfolio(c){
     eq=best.newEq;fx=best.newFx;
    }
    const result=sleeveInfo();
-   // Geographic and equity category targets are soft preferences.
+   // Geographic targets are preferences; equity-only sleeve targets are exact constraints.
    // A preferred equity split must not invalidate a risk-compliant portfolio.
   }
   const finalSleeve=sleeveInfo();
@@ -518,7 +518,7 @@ function renderPortfolio(plan,c){
   +(actualBond===null?'':'<div class="metric"><small>אג״ח, נתון מדווח</small><strong>'+fmt(actualBond)+'</strong><small>מבוסס תאריכי מדידה שונים</small></div>')
   +'<div class="metric"><small>דמי ניהול משוקללים</small><strong>'+fmt(picked.reduce((sum,f,i)=>sum+f.fee*weights[i]/100,0))+'</strong></div></div>'
   +'<details class="methodology portfolio-notes"><summary>פירוט הרכב התיק והנחות המודל</summary><div class="methodology-content">'
-  +'<p class="note">חלוקת קרנות הרכיב המנייתי לפי משקל קרנות מנייתיות בתיק: מדדים מובילים '+fmt(plan.sleeve?.total?plan.sleeve.by.core/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?50:65)+'%), סקטורים '+fmt(plan.sleeve?.total?plan.sleeve.by.sector/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?30:25)+'%), נישות '+fmt(plan.sleeve?.total?plan.sleeve.by.niche/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?20:10)+'%). הסיווג לפי שם הקרן והמדד המזוהה, ואינו מדידת החזקות בפועל.</p>'
+  +'<p class="note">חלוקת קרנות הרכיב המנייתי לפי משקל קרנות מנייתיות בתיק: מדדים מובילים '+fmt(plan.sleeve?.total?plan.sleeve.by.core/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?50:65)+'%), סקטורים '+fmt(plan.sleeve?.total?plan.sleeve.by.sector/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?30:25)+'%), נישות '+fmt(plan.sleeve?.total?plan.sleeve.by.niche/plan.sleeve.total*100:0)+' (יעד '+(c.level>=4?20:10)+'%). בתיק מנייתי בלבד החלוקה נאכפת בחישוב המשקולות. הסיווג לפי שם הקרן והמדד המזוהה, ואינו מדידת החזקות בפועל.</p>'
   +'<p class="note">פיזור גיאוגרפי של רכיב הקרנות המנייתיות: חו״ל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.FOREIGN/plan.sleeve.regionTotal:0)+' (יעד 50%), ישראל '+fmt(plan.sleeve?.regionTotal?100*plan.sleeve.regions.IL/plan.sleeve.regionTotal:0)+' (יעד 50%). הזיהוי מבוסס על שם הקרן וסיווגה, ולא על פירוט אחזקות. החלוקה עשויה לסטות מהיעד בהתאם למגבלות הסיכון ולקרנות הזמינות.</p>'
   +'<p class="note">התאמת החשיפה לרמת הסיכון: טווח עבודה '+fmt(c.minEq)+' עד '+fmt(c.targetEq)+' על בסיס נתוני חשיפה בפועל ככל שקיימים, ובהיעדרם אומדן המוגבל ל־100% כאשר תקרת התיק 100%. אומדן זה אינו תקרת החשיפה הרגולטורית ואינו אישור לעמידה בחשיפה בפועל. פרופילי 4/5 עשויים להתיר מעל 100%. סיכוני אג״ח ומח״מ אינם מכומתים.</p>'
   +'<p class="note">העדפות היועץ: '+esc($('style').selectedOptions[0].text)+'; '+esc($('diversify').selectedOptions[0].text)+'; '+esc($('bond').selectedOptions[0].text)+'; '+esc($('selection').selectedOptions[0].text)+'.</p>'
